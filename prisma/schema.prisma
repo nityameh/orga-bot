@@ -12,6 +12,7 @@ model User {
   phone     String?    @unique           // WhatsApp number e.g. "919876543210"; null for Telegram-only users
   tier      String     @default("free")  // "free" | "pro" | "team"
   lang      String     @default("en")    // "en" | "hi"
+  proactive Boolean    @default(true)    // proactive nudges on/off (/quiet)
   createdAt DateTime   @default(now())
   notes          Note[]
   tasks          Task[]
@@ -24,6 +25,7 @@ model User {
   linkCodes      LinkCode[]
   conversation   ConversationMessage[]
   integrations   Integration[]
+  embeddings     Embedding[]
 }
 
 model Note {
@@ -194,4 +196,22 @@ model Integration {
   user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, provider])
+}
+
+// Vector embeddings of user content for semantic search (ADR-011). Stored as a
+// plain float array and compared in-process: free (no pgvector/vector DB) and
+// fast enough at personal scale. Swap the storage behind src/memory when needed.
+model Embedding {
+  id         String   @id @default(cuid())
+  userId     String
+  sourceType String                          // "note" | "task"
+  sourceId   String
+  content    String                          // the text that was embedded (for debugging/re-ranking)
+  vector     Float[]
+  model      String                          // re-embed when the model changes
+  createdAt  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([sourceType, sourceId])
+  @@index([userId, model])
 }

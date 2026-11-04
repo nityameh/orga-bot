@@ -42,6 +42,8 @@ export default defineConfig({
         'src/agent/{agent,toolRegistry,time}.js': { lines: 90, functions: 90 },
         'src/llm/{anthropicProvider,groqProvider,pricing}.js': { lines: 85 },
         'src/integrations/{tokenVault,google/oauth,google/client}.js': { lines: 90, functions: 90 },
+        'src/memory/{ranking,service}.js': { lines: 85 },
+        'src/proactive/engine.js': { lines: 90, functions: 90 },
       },
     },
   },

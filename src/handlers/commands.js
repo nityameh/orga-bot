@@ -371,6 +371,8 @@ async function handleHelp(user, intent, message) {
     `/export — backup all your notes`,
     `/privacy — what data is stored`,
     `/login — open your dashboard`,
+    `/quiet — turn proactive messages on/off`,
+    `/link — connect WhatsApp and Telegram`,
     `/help — this message`,
   ].join('\n');
 

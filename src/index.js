@@ -16,6 +16,7 @@ try {
 
 const { createApp } = require('./app');
 const { startScheduler } = require('./scheduler');
+const { startProactiveJobs } = require('./proactive');
 const prisma = require('./db');
 const { log, error } = require('./logger');
 
@@ -24,6 +25,7 @@ const app = createApp();
 const server = app.listen(config.PORT, () => {
   log('server.started', { port: config.PORT, env: config.NODE_ENV });
   startScheduler();
+  startProactiveJobs();
 });
 
 server.on('error', (err) => {

@@ -109,4 +109,14 @@ async function handleDeleteMyDataConfirm(user, message) {
   return true;
 }
 
-module.exports = { handleLogin, handleLink, handleDeleteMyDataRequest, handleDeleteMyDataConfirm };
+/** "/quiet" toggles proactive messages (morning brief, meeting prep, nudges). */
+async function handleQuiet(user, message) {
+  const arg = message.text.trim().toLowerCase().split(/\s+/)[1];
+  const proactive = arg === 'off' ? true : arg === 'on' ? false : !user.proactive;
+  await prisma.user.update({ where: { id: user.id }, data: { proactive } });
+  await reply(message, proactive
+    ? `*Proactive messages on*\n\nI'll send a morning brief, meeting prep and gentle nudges (max a few a day, never 10pm–8am).`
+    : `*Proactive messages off*\n\nI'll only reply when you message me. Send /quiet again to turn them back on.`);
+}
+
+module.exports = { handleQuiet, handleLogin, handleLink, handleDeleteMyDataRequest, handleDeleteMyDataConfirm };

@@ -34,6 +34,14 @@ const EnvSchema = z
     GOOGLE_REDIRECT_URI: optionalString,   // https://<api-domain>/oauth/google/callback
     TOKEN_ENC_KEY: optionalString,         // openssl rand -base64 32
 
+    // Memory / semantic search (ADR-011) — local open-source embeddings, no API cost
+    EMBEDDINGS: z.enum(['local', 'off']).optional(),          // default: local (off under NODE_ENV=test)
+    EMBEDDING_MODEL: z.string().default('Xenova/multilingual-e5-small'),
+    MODEL_CACHE_DIR: z.string().default('.cache/models'),
+
+    // Proactive messages (Phase 4)
+    PROACTIVE_DAILY_LIMIT: z.coerce.number().int().min(0).max(10).default(3),
+
     // LLM / agent (ADR-004)
     GROQ_API_KEY: optionalString,
     ANTHROPIC_API_KEY: optionalString,

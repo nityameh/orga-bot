@@ -6,6 +6,18 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Commits follow
 
 ## [Unreleased]
 
+### Phase 4: Memory + proactive (all free/open-source)
+#### Added
+- Semantic search with a free local multilingual embedding model (Transformers.js, multilingual-e5-small); English/Hindi/Hinglish
+- Hybrid retrieval: Postgres full-text + vector similarity fused with Reciprocal Rank Fusion; keyword fallback
+- Embeddings kept in sync by an event-bus subscriber; backfill and model-check scripts; CI job verifies the real model
+- Agent receives the most relevant saved notes as context (retrieval-augmented)
+- Proactive engine with pluggable rules (morning brief, meeting prep, stale tasks) and guards: opt-in, quiet hours, daily limit, dedupe; `/quiet` command
+#### Fixed
+- Reminders can no longer double-fire across overlapping ticks or instances (atomic claim)
+#### Changed
+- ADR-009 (pg-boss worker) deferred and ADR-011 accepted with free components, to avoid paid services
+
 ### Phase 3: Google integrations + approvals
 #### Added
 - Google OAuth with PKCE and encrypted, expiring state; dashboard Settings page to connect/disconnect

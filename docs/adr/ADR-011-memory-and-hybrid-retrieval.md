@@ -1,6 +1,6 @@
 # ADR-011: Long-term memory and hybrid retrieval on pgvector
 
-**Status:** Proposed
+**Status:** Accepted (amended 2026-11-05: cost-free implementation)
 **Date:** 2026-11-04
 **Deciders:** Nitya
 
@@ -32,6 +32,19 @@ of facts about people beyond raw notes.
 
 ## Consequences
 - Retrieval quality measured with a labelled set (recall@5) in the eval suite.
+
+## Amendment (2026-11-05, Phase 4): free, open-source implementation
+Project rule: prefer free options when they meet the need.
+- **Embeddings:** `Xenova/multilingual-e5-small` (open source, 384 dims, int8 ONNX)
+  run in-process with Transformers.js. Multilingual, so Hindi/Hinglish work. No API, no per-call cost.
+- **Vectors:** `Float[]` column in the existing Postgres, cosine computed in-process
+  per user (≤ 5k vectors). pgvector deferred: it would need a different Postgres
+  image/template and adds nothing at personal scale.
+- **Keyword:** Postgres full-text (`simple` dictionary), no expression index
+  (Prisma can't model it and the query is already narrowed by `userId`).
+- **Fusion:** Reciprocal Rank Fusion (k = 60).
+- **Memory layers implemented:** episodic (Interaction log) and retrieval over notes/tasks,
+  injected into agent context. Fact consolidation ("semantic memory") remains future work.
 
 ## Revisit When
 More than ~5M chunks, or latency of hybrid search exceeds 300 ms p95.
