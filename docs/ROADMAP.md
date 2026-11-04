@@ -14,16 +14,18 @@ phase until the previous exit criterion passes. Tick items in the PR that comple
 ## Phase 0: Engineering Foundation (do this first)
 *Turns the codebase into a professional project before features pile on top.*
 
-- [ ] **P0 security:** magic-link dashboard auth replaces phone auth ([ADR-006](adr/ADR-006-dashboard-authentication.md))
-- [ ] Versioned Prisma migrations, baseline committed ([ADR-008](adr/ADR-008-versioned-migrations.md))
-- [ ] TypeScript + ESLint + Prettier set up; `typecheck` and `lint` scripts ([ADR-007](adr/ADR-007-typescript-migration.md))
-- [ ] Zod-validated config: app refuses to start with missing or invalid env
-- [ ] GitHub Actions CI: lint → typecheck → unit → integration (Postgres service) → coverage ≥ 70% on new code
-- [ ] Security in CI: `npm audit`, gitleaks secret scan, CodeQL, Dependabot
-- [ ] Repo hygiene: branch protection on `main`, PR template, CODEOWNERS, Conventional Commits (commitlint), CHANGELOG via release-please
-- [ ] `SECURITY.md` + STRIDE threat model (`docs/security/THREAT_MODEL.md`)
-- [ ] Module docs for every existing `src/` module (`docs/modules/`)
-- [ ] Remove dead dependencies (`@google/genai`, `@google/generative-ai`)
+- [x] **P0 security:** magic-link dashboard auth replaces phone auth ([ADR-006](adr/ADR-006-dashboard-authentication.md))
+- [x] Versioned Prisma migrations, baseline committed ([ADR-008](adr/ADR-008-versioned-migrations.md))
+- [x] TypeScript checking (JSDoc) + ESLint; `typecheck` and `lint` scripts ([ADR-007](adr/ADR-007-typescript-migration.md))
+- [x] Zod-validated config: app refuses to start with missing or invalid env
+- [x] GitHub Actions CI: lint → typecheck → migrations → unit + integration (Postgres service) → coverage thresholds; dashboard typecheck + build
+- [x] Security in CI: `npm audit`, gitleaks secret scan, CodeQL, Dependabot
+- [x] Repo hygiene: PR template, issue templates, CODEOWNERS, Conventional Commits (commitlint hook + CI), CHANGELOG
+- [ ] Branch protection on `main` (needs GitHub Pro for private repos; free via Student Pack)
+- [x] `SECURITY.md` + STRIDE threat model (`docs/security/THREAT_MODEL.md`)
+- [x] Module docs for every existing `src/` module (`docs/modules/`)
+- [x] Remove dead dependencies (`@google/genai`, `@google/generative-ai`)
+- [x] Found and fixed during Phase 0: IDOR on API update/delete routes, unauthenticated `/test-digest` route, hardcoded auto-login phone in dashboard, "delete my data" not deleting, critical/high dependency CVEs, internal error messages leaked in 500s
 
 **Exit:** a PR with a failing test or lint error cannot merge; the dashboard cannot be read without logging in.
 

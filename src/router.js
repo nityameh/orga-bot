@@ -13,6 +13,7 @@ const { getPendingEdit, getPendingConfirm, savePendingEdit, clearPending } = req
 const { handleReminderReply } = require('./scheduler');
 const { handleDelete, handleCancel, handleConfirmAction, handleUndo } = require('./handlers/delete');
 const { handleQuery } = require('./handlers/query');
+const { handleLogin, handleDeleteMyDataRequest, handleDeleteMyDataConfirm } = require('./handlers/account');
 const { sendMessage } = require('./sender');
 const { log } = require('./logger');
 
@@ -119,14 +120,12 @@ async function route(user, intent, message) {
   if (text === '/export')          return handleExport(user, intent, message);
   if (text === '/privacy')         return handlePrivacy(user, intent, message);
 
-  // ─── DELETE MY DATA ───────────────────────────────────────────────────
-  if (text === 'delete my data') {
-    log('user.deletion_requested', { userId: user.id, phone: user.phone });
-    await sendMessage(
-      message.from,
-      '*Deletion request received*\n\nAll your data will be permanently deleted within 24 hours. We will confirm via this chat.'
-    );
-    return;
+  // ─── Account: dashboard login + data deletion ─────────────────────────
+  if (text === '/login') return handleLogin(user, message);
+  if (text === 'delete my data') return handleDeleteMyDataRequest(user, message);
+  if (text === 'confirm delete') {
+    const handled = await handleDeleteMyDataConfirm(user, message);
+    if (handled) return;
   }
 
   // ─── Intent-based routing ─────────────────────────────────────────────

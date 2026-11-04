@@ -1,60 +1,20 @@
-'use client';
-
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-
 export default function LoginPage() {
-  const [phone, setPhone] = useState('91');
-  const [error, setError] = useState('');
-  const router = useRouter();
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const cleaned = phone.replace(/\D/g, '');
-    if (cleaned.length < 10) {
-      setError('Enter a valid phone number');
-      return;
-    }
-    localStorage.setItem('orga_phone', cleaned);
-    router.push('/dashboard');
-  };
-
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
       <div className="w-full max-w-sm p-8 bg-white rounded-xl shadow-sm">
         <h1 className="text-2xl font-bold text-gray-900 mb-1">Orga</h1>
-        <p className="text-gray-500 text-sm mb-8">
-          Enter your WhatsApp number to view your notes, tasks, and reminders.
-        </p>
+        <p className="text-gray-500 text-sm mb-6">Sign in from your chat. No password needed.</p>
 
-        <form onSubmit={handleSubmit}>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Phone number
-          </label>
-          <div className="flex items-center gap-2 mb-4">
-            <span className="text-gray-400 text-sm">+</span>
-            <input
-              type="tel"
-              value={phone}
-              onChange={(e) => { setPhone(e.target.value); setError(''); }}
-              placeholder="919876543210"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900 focus:border-transparent"
-              autoFocus
-            />
-          </div>
+        <ol className="space-y-3 text-sm text-gray-700 list-decimal list-inside">
+          <li>Open your chat with Orga on WhatsApp or Telegram.</li>
+          <li>
+            Send <code className="px-1.5 py-0.5 bg-gray-100 rounded text-gray-900">/login</code>
+          </li>
+          <li>Tap the link Orga sends back. It works once and expires in 10 minutes.</li>
+        </ol>
 
-          {error && <p className="text-red-500 text-xs mb-4">{error}</p>}
-
-          <button
-            type="submit"
-            className="w-full py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800 transition-colors"
-          >
-            Continue
-          </button>
-        </form>
-
-        <p className="text-xs text-gray-400 mt-6 text-center">
-          Use the same number you message Orga on WhatsApp.
+        <p className="text-xs text-gray-400 mt-8">
+          Only someone with access to your chat can sign in to your dashboard.
         </p>
       </div>
     </div>

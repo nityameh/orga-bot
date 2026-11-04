@@ -21,7 +21,7 @@ can see **what** was decided, **why**, and **what was rejected**.
 | [004](ADR-004-agent-loop-and-llm-providers.md) | Tool-use agent loop, tool registry, LLM provider strategy | Accepted |
 | [005](ADR-005-interaction-event-log.md) | Append-only Interaction log as system backbone | Accepted |
 | [006](ADR-006-dashboard-authentication.md) | Chat-delivered magic-link auth for the dashboard (P0) | Accepted |
-| [007](ADR-007-typescript-migration.md) | Incremental TypeScript migration + Zod at boundaries | Proposed |
+| [007](ADR-007-typescript-migration.md) | TypeScript-checked JavaScript (JSDoc) + Zod at boundaries | Accepted |
 | [008](ADR-008-versioned-migrations.md) | Versioned Prisma migrations instead of `db push` | Accepted |
 | [009](ADR-009-job-queue.md) | pg-boss for background jobs; separate worker process | Accepted |
 | [010](ADR-010-security-baseline-third-party-data.md) | Security baseline for third-party data and agent actions | Accepted |

@@ -4,11 +4,11 @@
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 
-const prisma = require('../src/db');
-const { handleNote } = require('../src/handlers/note');
-const { handleTask, handleTaskDone } = require('../src/handlers/task');
-const { handleReminder } = require('../src/handlers/reminder');
-const { handleUndo } = require('../src/handlers/delete');
+const prisma = require('../../src/db');
+const { handleNote } = require('../../src/handlers/note');
+const { handleTask, handleTaskDone } = require('../../src/handlers/task');
+const { handleReminder } = require('../../src/handlers/reminder');
+const { handleUndo } = require('../../src/handlers/delete');
 
 const PHONE = '910000000001';
 let testUser;

@@ -2,45 +2,58 @@
 // Integration tests for REST API endpoints using real DB.
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-const express = require('express');
-const prisma = require('../src/db');
+const prisma = require('../../src/db');
 
-let baseUrl, server, testUser, testNote, testTask, testReminder;
+let baseUrl, server, testUser, testNote, testTask, sessionCookie;
 const PHONE = '910000000002';
 
+// Logs in through the real flow: issue link → POST /auth/exchange → session cookie.
+async function login(userId) {
+  const { authService } = require('../../src/auth');
+  const { url } = await authService.issueLoginLink(userId);
+  const token = url.split('#token=')[1];
+  const res = await fetch(`${baseUrl}/api/v1/auth/exchange`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token }),
+  });
+  return { res, token, cookie: res.headers.get('set-cookie')?.split(';')[0] };
+}
+
 beforeAll(async () => {
-  // Create test user
   testUser = await prisma.user.upsert({
     where: { phone: PHONE },
     update: {},
     create: { phone: PHONE, tier: 'free', lang: 'en' },
   });
 
-  // Create test data
   testNote = await prisma.note.create({
     data: { userId: testUser.id, title: 'API test note', body: 'test body', tags: ['#test'], client: 'apiclient' },
   });
   testTask = await prisma.task.create({
     data: { userId: testUser.id, title: 'API test task', items: [{ id: 1, text: 'item', done: false }], tags: [] },
   });
-  testReminder = await prisma.reminder.create({
+  await prisma.reminder.create({
     data: { userId: testUser.id, title: 'API test reminder', fireAt: new Date(Date.now() + 86400000), status: 'pending' },
   });
 
-  // Start test server
-  const app = express();
-  app.use(express.json());
-  app.use('/api/v1', require('../src/api'));
-  return new Promise(resolve => {
+  // Mount the real application (same middleware stack as production).
+  const { createApp } = require('../../src/app');
+  const app = createApp();
+  await new Promise(resolve => {
     server = app.listen(0, () => {
       baseUrl = `http://localhost:${server.address().port}`;
       resolve();
     });
   });
+
+  sessionCookie = (await login(testUser.id)).cookie;
 });
 
 afterAll(async () => {
   server?.close();
+  await prisma.session.deleteMany({ where: { userId: testUser.id } });
+  await prisma.loginToken.deleteMany({ where: { userId: testUser.id } });
   await prisma.reminder.deleteMany({ where: { userId: testUser.id } });
   await prisma.task.deleteMany({ where: { userId: testUser.id } });
   await prisma.note.deleteMany({ where: { userId: testUser.id } });
@@ -49,11 +62,10 @@ afterAll(async () => {
   await prisma.$disconnect();
 });
 
-async function api(method, path, body) {
-  const url = `${baseUrl}/api/v1${path}?phone=${PHONE}`;
-  const options = { method, headers: { 'Content-Type': 'application/json' } };
+async function api(method, path, body, cookie = sessionCookie) {
+  const options = { method, headers: { 'Content-Type': 'application/json', Cookie: cookie } };
   if (body) options.body = JSON.stringify(body);
-  const res = await fetch(url, options);
+  const res = await fetch(`${baseUrl}/api/v1${path}`, options);
   return { status: res.status, data: await res.json() };
 }
 
@@ -177,10 +189,66 @@ describe('Reminders API', () => {
 
 // ─── Auth ─────────────────────────────────────────────────────────────────
 
-describe('Auth middleware', () => {
-  it('rejects requests without phone', async () => {
+describe('Auth (ADR-006)', () => {
+  it('rejects requests without a session cookie', async () => {
     const res = await fetch(`${baseUrl}/api/v1/notes`);
     expect(res.status).toBe(401);
+  });
+
+  it('no longer accepts ?phone= as authentication', async () => {
+    const res = await fetch(`${baseUrl}/api/v1/notes?phone=${PHONE}`, { headers: { 'X-User-Phone': PHONE } });
+    expect(res.status).toBe(401);
+  });
+
+  it('rejects a forged session cookie', async () => {
+    const { status } = await api('GET', '/notes', null, `orga_session=${'a'.repeat(43)}`);
+    expect(status).toBe(401);
+  });
+
+  it('sets an HttpOnly SameSite cookie on exchange', async () => {
+    const { res } = await login(testUser.id);
+    const setCookie = res.headers.get('set-cookie');
+    expect(res.status).toBe(200);
+    expect(setCookie).toMatch(/HttpOnly/i);
+    expect(setCookie).toMatch(/SameSite=Lax/i);
+  });
+
+  it('rejects reuse of a login token', async () => {
+    const { token } = await login(testUser.id);
+    const res = await fetch(`${baseUrl}/api/v1/auth/exchange`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token }),
+    });
+    expect(res.status).toBe(401);
+  });
+
+  it('GET /auth/me returns the session user without the phone number', async () => {
+    const res = await fetch(`${baseUrl}/api/v1/auth/me`, { headers: { Cookie: sessionCookie } });
+    const data = await res.json();
+    expect(res.status).toBe(200);
+    expect(data.id).toBe(testUser.id);
+    expect(data.phone).toBeUndefined();
+  });
+
+  it('rejects non-JSON mutations (CSRF guard)', async () => {
+    const res = await fetch(`${baseUrl}/api/v1/notes`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded', Cookie: sessionCookie },
+      body: 'title=csrf',
+    });
+    expect(res.status).toBe(415);
+  });
+
+  it('logout revokes the session', async () => {
+    const { cookie } = await login(testUser.id);
+    await fetch(`${baseUrl}/api/v1/auth/logout`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: cookie },
+      body: '{}',
+    });
+    const { status } = await api('GET', '/notes', null, cookie);
+    expect(status).toBe(401);
   });
 });
 

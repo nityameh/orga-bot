@@ -1,0 +1,3 @@
+#!/bin/sh
+# .githooks/commit-msg — rejects commit messages that are not Conventional Commits.
+npx --no -- commitlint --edit "$1"

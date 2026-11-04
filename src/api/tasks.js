@@ -5,7 +5,7 @@ const router = express.Router();
 const prisma = require('../db');
 
 // POST /api/v1/tasks — create a task list
-router.post('/', async (req, res) => {
+router.post('/', async (req, res, next) => {
   try {
     const { title, items, tags, client } = req.body;
     if (!title) return res.status(400).json({ error: 'title is required' });
@@ -31,12 +31,12 @@ router.post('/', async (req, res) => {
     });
     res.status(201).json(task);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
 // GET /api/v1/tasks
-router.get('/', async (req, res) => {
+router.get('/', async (req, res, next) => {
   try {
     const { client, page = 1, limit = 20 } = req.query;
 
@@ -57,12 +57,12 @@ router.get('/', async (req, res) => {
 
     res.json({ tasks, total, page: parseInt(page) });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
 // GET /api/v1/tasks/:id
-router.get('/:id', async (req, res) => {
+router.get('/:id', async (req, res, next) => {
   try {
     const task = await prisma.task.findFirst({
       where: { id: req.params.id, userId: req.user.id },
@@ -70,12 +70,12 @@ router.get('/:id', async (req, res) => {
     if (!task) return res.status(404).json({ error: 'Task not found' });
     res.json(task);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
 // PUT /api/v1/tasks/:id — update task title, tags, client
-router.put('/:id', async (req, res) => {
+router.put('/:id', async (req, res, next) => {
   try {
     const { title, tags, client } = req.body;
     const data = {};
@@ -83,41 +83,44 @@ router.put('/:id', async (req, res) => {
     if (tags !== undefined) data.tags = tags;
     if (client !== undefined) data.client = client;
 
-    const task = await prisma.task.update({
-      where: { id: req.params.id },
+    const { count } = await prisma.task.updateMany({
+      where: { id: req.params.id, userId: req.user.id },
       data,
     });
-    res.json(task);
+    if (count === 0) return res.status(404).json({ error: 'Task not found' });
+    res.json(await prisma.task.findUnique({ where: { id: req.params.id } }));
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
 // PUT /api/v1/tasks/:id/items — update items array (drag-drop reorder, toggle done, edit text)
-router.put('/:id/items', async (req, res) => {
+router.put('/:id/items', async (req, res, next) => {
   try {
     const { items } = req.body;
     if (!Array.isArray(items)) {
       return res.status(400).json({ error: 'items must be an array' });
     }
 
-    const task = await prisma.task.update({
-      where: { id: req.params.id },
+    const { count } = await prisma.task.updateMany({
+      where: { id: req.params.id, userId: req.user.id },
       data: { items },
     });
-    res.json(task);
+    if (count === 0) return res.status(404).json({ error: 'Task not found' });
+    res.json(await prisma.task.findUnique({ where: { id: req.params.id } }));
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
 // DELETE /api/v1/tasks/:id
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', async (req, res, next) => {
   try {
-    await prisma.task.delete({ where: { id: req.params.id } });
+    const { count } = await prisma.task.deleteMany({ where: { id: req.params.id, userId: req.user.id } });
+    if (count === 0) return res.status(404).json({ error: 'Task not found' });
     res.json({ ok: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 

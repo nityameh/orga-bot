@@ -5,7 +5,7 @@ const router = express.Router();
 const prisma = require('../db');
 
 // POST /api/v1/notes — create a note
-router.post('/', async (req, res) => {
+router.post('/', async (req, res, next) => {
   try {
     const { title, body, tags, client, project } = req.body;
     if (!title) return res.status(400).json({ error: 'title is required' });
@@ -22,12 +22,12 @@ router.post('/', async (req, res) => {
     });
     res.status(201).json(note);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
 // GET /api/v1/notes — list notes with filters
-router.get('/', async (req, res) => {
+router.get('/', async (req, res, next) => {
   try {
     const { search, client, tag, pinned, archived, page = 1, limit = 20, sort = 'createdAt' } = req.query;
 
@@ -70,12 +70,12 @@ router.get('/', async (req, res) => {
 
     res.json({ notes, total, page: parseInt(page) });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
 // GET /api/v1/notes/:id
-router.get('/:id', async (req, res) => {
+router.get('/:id', async (req, res, next) => {
   try {
     const note = await prisma.note.findFirst({
       where: { id: req.params.id, userId: req.user.id },
@@ -83,12 +83,12 @@ router.get('/:id', async (req, res) => {
     if (!note) return res.status(404).json({ error: 'Note not found' });
     res.json(note);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
 // PUT /api/v1/notes/:id — update note
-router.put('/:id', async (req, res) => {
+router.put('/:id', async (req, res, next) => {
   try {
     const { title, body, tags, client, project, pinned, archivedAt } = req.body;
 
@@ -101,31 +101,34 @@ router.put('/:id', async (req, res) => {
     if (pinned !== undefined) data.pinned = pinned;
     if (archivedAt !== undefined) data.archivedAt = archivedAt;
 
-    const note = await prisma.note.update({
-      where: { id: req.params.id },
+    // Scoped by userId: a user can never modify another user's note (IDOR).
+    const { count } = await prisma.note.updateMany({
+      where: { id: req.params.id, userId: req.user.id },
       data,
     });
-    res.json(note);
+    if (count === 0) return res.status(404).json({ error: 'Note not found' });
+    res.json(await prisma.note.findUnique({ where: { id: req.params.id } }));
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
 // DELETE /api/v1/notes/:id — soft delete
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', async (req, res, next) => {
   try {
-    await prisma.note.update({
-      where: { id: req.params.id },
+    const { count } = await prisma.note.updateMany({
+      where: { id: req.params.id, userId: req.user.id, deletedAt: null },
       data: { deletedAt: new Date() },
     });
+    if (count === 0) return res.status(404).json({ error: 'Note not found' });
     res.json({ ok: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
 // POST /api/v1/notes/:id/pin — toggle pin
-router.post('/:id/pin', async (req, res) => {
+router.post('/:id/pin', async (req, res, next) => {
   try {
     const note = await prisma.note.findFirst({
       where: { id: req.params.id, userId: req.user.id },
@@ -138,12 +141,12 @@ router.post('/:id/pin', async (req, res) => {
     });
     res.json(updated);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
 // POST /api/v1/notes/:id/archive — toggle archive
-router.post('/:id/archive', async (req, res) => {
+router.post('/:id/archive', async (req, res, next) => {
   try {
     const note = await prisma.note.findFirst({
       where: { id: req.params.id, userId: req.user.id },
@@ -156,7 +159,7 @@ router.post('/:id/archive', async (req, res) => {
     });
     res.json(updated);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 

@@ -6,9 +6,13 @@
 const Groq = require('groq-sdk');
 const { log, warn, error } = require('./logger');
 
-const client = new Groq({
-  apiKey: process.env.GROQ_API_KEY,
-});
+// Created lazily so the app (and tests) can start without GROQ_API_KEY;
+// without a key, classify() falls back to keyword matching.
+let client;
+function getClient() {
+  if (!client) client = new Groq({ apiKey: process.env.GROQ_API_KEY });
+  return client;
+}
 
 // ─── System prompt ────────────────────────────────────────────────────────
 function buildSystemPrompt(currentTimeIST) {
@@ -114,7 +118,7 @@ async function classify(text) {
   });
 
   try {
-    const response = await client.chat.completions.create({
+    const response = await getClient().chat.completions.create({
       model:      'llama-3.3-70b-versatile',
       max_tokens: 300,
       messages: [

@@ -17,6 +17,8 @@ model User {
   tasks          Task[]
   reminders      Reminder[]
   pendingActions PendingAction[]
+  loginTokens    LoginToken[]
+  sessions       Session[]
 }
 
 model Note {
@@ -31,7 +33,7 @@ model Note {
   archivedAt DateTime?                     // archived notes hidden from default view
   createdAt  DateTime  @default(now())
   deletedAt  DateTime?                     // soft delete — recoverable for 30 days
-  user       User      @relation(fields: [userId], references: [id])
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt])
   @@index([userId, tags])
@@ -46,7 +48,7 @@ model Task {
   tags      String[]
   client    String?
   createdAt DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id])
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt])
 }
@@ -59,7 +61,7 @@ model Reminder {
   status      String    @default("pending") // "pending" | "fired" | "done" | "snoozed"
   snoozeUntil DateTime?
   createdAt   DateTime  @default(now())
-  user        User      @relation(fields: [userId], references: [id])
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([status, fireAt])              // critical — used by cron job every 60s
 }
@@ -71,7 +73,36 @@ model PendingAction {
   items     Json     // [{ pos: 1, id: "cuid", summary: "title" }, ...]
   expiresAt DateTime // now + 10 minutes
   createdAt DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id])
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, expiresAt])
+}
+
+// Dashboard auth — see docs/adr/ADR-006-dashboard-authentication.md
+// One-time magic-link token sent over the user's chat. Only the SHA-256 hash is stored.
+model LoginToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+// Server-side dashboard session. The cookie holds a random id; only its hash is stored.
+model Session {
+  id         String    @id @default(cuid())
+  userId     String
+  tokenHash  String    @unique
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  lastSeenAt DateTime  @default(now())
+  userAgent  String?
+  createdAt  DateTime  @default(now())
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }

@@ -5,7 +5,7 @@
 const prisma = require('../db');
 const { sendMessage } = require('../sender');
 const { log } = require('../logger');
-const { getIcalUrl, getGoogleCalUrl } = require('../ical');
+const { getGoogleCalUrl } = require('../ical');
 
 async function handleReminder(user, intent, message) {
   if (!intent.datetime) {

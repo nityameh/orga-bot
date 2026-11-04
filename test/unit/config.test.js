@@ -1,0 +1,46 @@
+// test/unit/config.test.js
+// Env validation must fail fast with a readable message (src/config.js).
+
+import { describe, it, expect } from 'vitest';
+const { parseConfig } = require('../../src/config');
+
+const base = { DATABASE_URL: 'postgresql://u:p@localhost:5432/db' };
+
+describe('parseConfig', () => {
+  it('applies defaults in development', () => {
+    const c = parseConfig(base);
+    expect(c.NODE_ENV).toBe('development');
+    expect(c.PORT).toBe(3000);
+    expect(c.LOGIN_TOKEN_TTL_MINUTES).toBe(10);
+  });
+
+  it('treats empty strings as missing', () => {
+    expect(parseConfig({ ...base, WHATSAPP_TOKEN: '   ' }).WHATSAPP_TOKEN).toBeUndefined();
+  });
+
+  it('requires DATABASE_URL', () => {
+    expect(() => parseConfig({})).toThrow(/DATABASE_URL/);
+  });
+
+  it('requires WhatsApp secrets and https dashboard in production', () => {
+    let message = '';
+    try {
+      parseConfig({ ...base, NODE_ENV: 'production', DASHBOARD_URL: 'http://dash.example.com' });
+    } catch (err) {
+      message = err.message;
+    }
+    for (const key of ['APP_SECRET', 'WHATSAPP_TOKEN', 'PHONE_NUMBER_ID', 'WEBHOOK_VERIFY_TOKEN', 'DASHBOARD_URL']) {
+      expect(message).toContain(key);
+    }
+  });
+
+  it('accepts a complete production config', () => {
+    const c = parseConfig({
+      ...base,
+      NODE_ENV: 'production',
+      DASHBOARD_URL: 'https://dash.example.com',
+      WHATSAPP_TOKEN: 't', PHONE_NUMBER_ID: '1', WEBHOOK_VERIFY_TOKEN: 'v', APP_SECRET: 's',
+    });
+    expect(c.NODE_ENV).toBe('production');
+  });
+});

@@ -5,7 +5,7 @@ const router = express.Router();
 const prisma = require('../db');
 
 // GET /api/v1/clients — list all unique clients
-router.get('/', async (req, res) => {
+router.get('/', async (req, res, next) => {
   try {
     const userId = req.user.id;
 
@@ -53,12 +53,12 @@ router.get('/', async (req, res) => {
     clients.sort((a, b) => (b.noteCount + b.taskCount) - (a.noteCount + a.taskCount));
     res.json({ clients });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
 // GET /api/v1/clients/:name — aggregated view for one client
-router.get('/:name', async (req, res) => {
+router.get('/:name', async (req, res, next) => {
   try {
     const userId = req.user.id;
     const name = decodeURIComponent(req.params.name).toLowerCase();
@@ -115,7 +115,7 @@ router.get('/:name', async (req, res) => {
 
     res.json({ name, notes, tasks, reminders, stats: { lastInteraction, thisWeekNotes, lastWeekNotes, actionItems } });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 

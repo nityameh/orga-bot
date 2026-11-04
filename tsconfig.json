@@ -1,0 +1,18 @@
+{
+  // Type-checks JavaScript with the TypeScript compiler (no build step) — ADR-007.
+  // Files opt in with `// @ts-check` at the top; all new modules must opt in.
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "allowJs": true,
+    "checkJs": false,
+    "noEmit": true,
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "types": ["node"]
+  },
+  "include": ["src/**/*.js"]
+}
