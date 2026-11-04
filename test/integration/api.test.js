@@ -240,6 +240,14 @@ describe('Auth (ADR-006)', () => {
     expect(res.status).toBe(415);
   });
 
+  it('accepts bodiless mutations that declare JSON (dashboard pin/delete buttons)', async () => {
+    const res = await fetch(`${baseUrl}/api/v1/notes/${testNote.id}/pin`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Cookie: sessionCookie },
+    });
+    expect(res.status).toBe(200);
+  });
+
   it('logout revokes the session', async () => {
     const { cookie } = await login(testUser.id);
     await fetch(`${baseUrl}/api/v1/auth/logout`, {
