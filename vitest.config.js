@@ -39,6 +39,8 @@ export default defineConfig({
         'src/channels/{whatsapp,telegram,registry}.js': { lines: 85, functions: 90 },
         'src/interactions/**': { lines: 90, functions: 90 },
         'src/context.js': { lines: 90 },
+        'src/agent/{agent,toolRegistry,time}.js': { lines: 90, functions: 90 },
+        'src/llm/{anthropicProvider,groqProvider,pricing}.js': { lines: 85 },
       },
     },
   },

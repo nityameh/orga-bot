@@ -18,7 +18,7 @@ can see **what** was decided, **why**, and **what was rejected**.
 | [001](ADR-001-architecture-evaluation.md) | Evaluation of current architecture vs documented design | Superseded by 002 |
 | [002](ADR-002-personal-ai-agent-pivot.md) | Reposition Orga as a personal AI agent with interaction analytics | Accepted |
 | [003](ADR-003-channel-adapter.md) | WhatsApp + Telegram through a ChannelAdapter interface | Accepted |
-| [004](ADR-004-agent-loop-and-llm-providers.md) | Tool-use agent loop, tool registry, LLM provider strategy | Accepted |
+| [004](ADR-004-agent-loop-and-llm-providers.md) | Tool-use agent loop, tool registry, LLM provider strategy (amended: Opus 5.5 @ low effort) | Accepted |
 | [005](ADR-005-interaction-event-log.md) | Append-only Interaction log as system backbone | Accepted |
 | [006](ADR-006-dashboard-authentication.md) | Chat-delivered magic-link auth for the dashboard (P0) | Accepted |
 | [007](ADR-007-typescript-migration.md) | TypeScript-checked JavaScript (JSDoc) + Zod at boundaries | Accepted |

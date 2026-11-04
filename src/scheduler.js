@@ -228,6 +228,11 @@ function startDailyCleanup() {
   cron.schedule('0 3 * * *', async () => {
     try {
       await cleanupExpired();
+      // Conversation memory is short-term by design (privacy): keep 7 days.
+      const { count } = await prisma.conversationMessage.deleteMany({
+        where: { createdAt: { lt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } },
+      });
+      if (count) log('conversation.pruned', { count });
     } catch (err) {
       error('cleanup.error', { err: err.message });
     }

@@ -1,6 +1,6 @@
 # ADR-004: Replace the one-shot classifier with a tool-use agent loop
 
-**Status:** Accepted
+**Status:** Accepted (amended 2026-11-05 at implementation, see below)
 **Date:** 2026-11-04
 **Deciders:** Nitya
 
@@ -34,6 +34,19 @@ and remind me 30 min before the Acme call") or use external data.
 - Higher cost per message → per-user daily token budget (enforced in the loop).
 - Classifier eval suite is replaced by agent evals (ADR-013).
 - Keyword fallback stays as the last resort when all providers fail.
+
+## Amendment (2026-11-05, Phase 2 implementation)
+- **Model:** default `claude-opus-5-5` at `effort: low` (not Sonnet). Current guidance
+  is to default to the strongest model and trade cost with effort, not model
+  tier; low effort keeps chat latency and cost down. Override with `AGENT_MODEL`.
+- **No forced `tool_choice`:** current Claude models reject `any`/`tool`; tool use is steered by the prompt.
+- **Thinking blocks round-trip:** thinking can't be disabled on the default model, so the
+  loop appends assistant content unchanged within a turn. Cross-turn history is stored as plain text.
+- **Refusal fallback:** requests opt into server-side `fallbacks: "default"`.
+- **Strangler-fig migration:** handlers + classifier remain as the fallback path; commands
+  that need no LLM go through a deterministic fast path (`routeCommand`).
+- **Approval gate:** implemented as fail-closed for `external` tools; the interactive
+  approval flow ships with the first external tool (Phase 3).
 
 ## Revisit When
 Tool count passes ~30 (consider tool search / routing), or cost per active user

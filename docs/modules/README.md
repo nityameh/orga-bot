@@ -8,6 +8,7 @@ Each starts with a plain-language summary, then goes into detail.
 | Auth (dashboard login, sessions) | [auth.md](auth.md) | `src/auth/` |
 | Channels (WhatsApp, Telegram adapters; reply, notifyUser) | [channels.md](channels.md) | `src/channels/` |
 | Messaging pipeline (webhooks → classify → route) | [messaging-pipeline.md](messaging-pipeline.md) | `src/pipeline.js`, `src/classifier.js`, `src/router.js`, `src/pending.js` |
+| Agent (LLM loop, tools, providers, prompts, evals) | [agent.md](agent.md) | `src/agent/`, `src/llm/`, `prompts/`, `evals/` |
 | Interactions (event bus, Interaction log, trace context) | [interactions.md](interactions.md) | `src/interactions/`, `src/context.js` |
 | Users (identity, channel linking) | [users.md](users.md) | `src/users/` |
 | Handlers (notes, tasks, reminders, queries, commands, account) | [handlers.md](handlers.md) | `src/handlers/` |

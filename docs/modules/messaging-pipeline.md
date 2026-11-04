@@ -29,7 +29,9 @@ POST <adapter.webhookPath> ─► adapter.verifyRequest   (invalid → 403)
                                   rate limit "<channel>:<externalId>" (20/min)
                                   resolveUser → emit message.received
                                   new user? → welcome, stop
-                                  classify → route → handler → reply()
+                                  routeCommand (no LLM) → handled? stop
+                                  agent available? → agent turn → reply()   (docs/modules/agent.md)
+                                  else classify → routeIntent → handler → reply()
                             ─► on error: log + "Something went wrong" reply
 ```
 
@@ -40,9 +42,7 @@ The keyword fallback never returns `UNKNOWN`; it defaults to `NOTE` (save rather
 ## Known limitations (addressed by the roadmap)
 | Limitation | Fix |
 |---|---|
-| Commands like `/login` still pay for an LLM classification | Phase 2: agent loop with deterministic command fast-path |
 | Dedupe and rate limits are in-memory (lost on restart, per instance) | Accepted at current scale (threat model) |
-| One intent per message | Phase 2: multi-step tool use |
 
 ## Testing
 Classifier behaviour lives in `evals/` (calls the live LLM; `npm run evals:legacy`).

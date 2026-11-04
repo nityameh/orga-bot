@@ -6,6 +6,18 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Commits follow
 
 ## [Unreleased]
 
+### Phase 2: Agent core
+#### Added
+- Tool-use agent loop (ADR-004) with step/time limits, parallel tool calls, error-tolerant tool results, refusal handling
+- `LLMProvider` strategy: Claude (`claude-opus-5-5`, effort `low`, prompt caching, server-side refusal fallback) and Groq
+- Tool registry with Zod-validated, strict schemas and permission tiers; 9 tools over notes, tasks and reminders
+- Deterministic command fast path (`routeCommand`); legacy classifier kept as fallback (strangler fig)
+- Versioned system prompt (`prompts/agent.system.v1.md`) with injection-resistant tool-data wrapping
+- Short-term conversation memory (`ConversationMessage`, pruned after 7 days)
+- Per-user daily token budget; per-turn `agent.turn` telemetry (tokens, cache, cost, latency, tools, model)
+- Eval harness: 25 cases / 8 suites, deterministic graders, baseline gate, CI workflow; grader unit tests
+- `docs/METRICS.md` for measured project numbers
+
 ### Phase 1: Multi-channel + Interaction log
 #### Added
 - Telegram channel alongside WhatsApp via `ChannelAdapter` interface and registry (ADR-003)
