@@ -43,4 +43,16 @@ describe('parseConfig', () => {
     });
     expect(c.NODE_ENV).toBe('production');
   });
+
+  it('requires a Telegram webhook secret in production when a bot token is set', () => {
+    expect(() => parseConfig({
+      ...base, NODE_ENV: 'production', DASHBOARD_URL: 'https://d.example.com',
+      WHATSAPP_TOKEN: 't', PHONE_NUMBER_ID: '1', WEBHOOK_VERIFY_TOKEN: 'v', APP_SECRET: 's',
+      TELEGRAM_BOT_TOKEN: 'bot',
+    })).toThrow(/TELEGRAM_WEBHOOK_SECRET/);
+  });
+
+  it('requires TOKEN_ENC_KEY whenever Google is configured', () => {
+    expect(() => parseConfig({ ...base, GOOGLE_CLIENT_ID: 'id' })).toThrow(/TOKEN_ENC_KEY/);
+  });
 });

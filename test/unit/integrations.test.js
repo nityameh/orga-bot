@@ -79,6 +79,19 @@ describe('Google OAuth', () => {
     expect(tokens).toMatchObject({ accessToken: 'at', refreshToken: 'rt', email: 'me@gmail.com' });
   });
 
+  it('refreshes without an id_token and revokes best-effort (never throws)', async () => {
+    postForm.mockResolvedValueOnce({ access_token: 'at2', expires_in: 3600 });
+    expect(await oauth.refresh('rt')).toMatchObject({ accessToken: 'at2', email: null, refreshToken: undefined });
+    postForm.mockRejectedValueOnce(new Error('network'));
+    await expect(oauth.revoke('rt')).resolves.toBeUndefined();
+    expect(postForm.mock.calls.at(-1)[0]).toBe('https://oauth2.googleapis.com/revoke');
+  });
+
+  it('propagates refresh errors other than invalid_grant', async () => {
+    postForm.mockRejectedValueOnce({ response: { data: { error: 'server_error' } } });
+    await expect(oauth.refresh('rt')).rejects.toMatchObject({ response: { data: { error: 'server_error' } } });
+  });
+
   it('maps invalid_grant on refresh to GoogleAuthExpiredError', async () => {
     postForm.mockRejectedValueOnce({ response: { data: { error: 'invalid_grant' } } });
     await expect(oauth.refresh('rt')).rejects.toBeInstanceOf(GoogleAuthExpiredError);
