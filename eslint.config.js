@@ -17,7 +17,7 @@ module.exports = [
       globals: { ...globals.node },
     },
     rules: {
-      'no-unused-vars': ['error', { argsIgnorePattern: '^_|^(req|res|next|intent|user|message)$' }],
+      'no-unused-vars': ['error', { argsIgnorePattern: '^_|^(req|res|next|intent|user|message)$', varsIgnorePattern: '^_' }],
       'no-empty': ['error', { allowEmptyCatch: false }],
       eqeqeq: ['error', 'always'],
       'no-console': 'off',

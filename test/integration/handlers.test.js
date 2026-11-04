@@ -12,7 +12,8 @@ const { handleUndo } = require('../../src/handlers/delete');
 
 const PHONE = '910000000001';
 let testUser;
-const msg = (text) => ({ from: PHONE, text, id: `test_${Date.now()}` });
+// Normalised InboundMessage (src/channels/types.js); replies print to the console in tests.
+const msg = (text) => ({ channel: 'whatsapp', externalId: PHONE, from: PHONE, text, id: `test_${Date.now()}`, name: '' });
 
 beforeAll(async () => {
   testUser = await prisma.user.upsert({

@@ -1,14 +1,15 @@
 // src/scheduler.js
-// Two cron jobs:
-//   1. Every 60s  — poll for due reminders and fire them
-//   2. Every Sunday 6pm IST — send weekly digest to active users
-//
-// Stateless — all state lives in Postgres.
-// Safe to restart — re-checks DB on next tick, no missed reminders.
+// Time-driven jobs: fire due reminders (every minute), weekly digest (Sunday
+// 6pm IST), nightly cleanup. Proactive messages go through notifyUser(), which
+// picks the user's channel and falls back to approved WhatsApp templates
+// outside the 24-hour window.
+// Stateless — all state lives in Postgres; safe to restart.
+// Docs: docs/modules/scheduler.md
 
 const cron   = require('node-cron');
 const prisma = require('./db');
-const { sendMessage, sendButtons } = require('./sender');
+const { reply, notifyUser } = require('./channels');
+const { emit, KINDS } = require('./interactions');
 const { log, warn, error } = require('./logger');
 const { getGoogleCalUrl } = require('./ical');
 const { cleanupExpired } = require('./pending');
@@ -56,10 +57,15 @@ async function fireReminder(reminder, attempt = 1) {
     { id: 'reminder_done', title: 'Done' },
     { id: 'reminder_snooze', title: 'Snooze 1hr' },
   ];
-  const sent = await sendButtons(reminder.user.phone, bodyText, buttons);
+  const sent = await notifyUser(reminder.user, {
+    text: bodyText,
+    buttons,
+    template: { name: 'reminder_fire', params: [reminder.title] },
+  });
 
   if (sent) {
-    log('reminder.fired', { title: reminder.title, phone: reminder.user.phone });
+    log('reminder.fired', { reminderId: reminder.id, userId: reminder.userId });
+    emit({ kind: KINDS.REMINDER_FIRED, userId: reminder.userId, summary: reminder.title, payload: { reminderId: reminder.id } });
     return;
   }
 
@@ -147,18 +153,23 @@ async function sendDigestToUser(user) {
     ...upcomingLines,
   ].filter(l => l !== null).join('\n');
 
-  const sent = await sendMessage(user.phone, message);
+  const nextUp = user.reminders[0]?.title || 'nothing scheduled';
+  const sent = await notifyUser(user, {
+    text: message,
+    template: { name: 'weekly_digest', params: [String(noteCount), String(tasksDone), nextUp] },
+  });
   if (sent) {
-    log('digest.weekly.sent', { phone: user.phone });
+    log('digest.weekly.sent', { userId: user.id });
+    emit({ kind: KINDS.DIGEST_SENT, userId: user.id, payload: { noteCount, tasksDone, upcomingCount } });
   } else {
-    warn('digest.weekly.failed', { phone: user.phone });
+    warn('digest.weekly.failed', { userId: user.id });
   }
 }
 
 // ─── SNOOZE / DONE reply handler ───────────────────────────────────────────
 
-async function handleReminderReply(user, text) {
-  const t = text.trim().toUpperCase();
+async function handleReminderReply(user, message) {
+  const t = message.text.trim().toUpperCase();
 
   if (t === 'DONE') {
     const reminder = await prisma.reminder.findFirst({
@@ -173,7 +184,8 @@ async function handleReminderReply(user, text) {
       data:  { status: 'done' },
     });
 
-    await sendMessage(user.phone, `*Done* — "${reminder.title}"`);
+    await reply(message, `*Done* — "${reminder.title}"`);
+    emit({ kind: KINDS.REMINDER_COMPLETED, userId: user.id, summary: reminder.title, payload: { reminderId: reminder.id } });
 
     return true;
   }
@@ -202,7 +214,8 @@ async function handleReminderReply(user, text) {
       timeZone: 'Asia/Kolkata', hour12: true,
     });
 
-    await sendMessage(user.phone, `*Snoozed* — will remind you at ${timeIST}`);
+    await reply(message, `*Snoozed* — will remind you at ${timeIST}`);
+    emit({ kind: KINDS.REMINDER_SNOOZED, userId: user.id, summary: reminder.title, payload: { reminderId: reminder.id, until: snoozeUntil.toISOString() } });
     return true;
   }
 

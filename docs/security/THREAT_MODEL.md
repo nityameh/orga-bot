@@ -4,7 +4,7 @@
 > protects against it. Method: STRIDE per trust boundary. Review this whenever a
 > new data source, channel, tool with external effects, or public endpoint is added.
 
-**Last reviewed:** 2026-11-05 (Phase 0)
+**Last reviewed:** 2026-11-05 (Phase 1)
 
 ## 1. Assets
 | Asset | Why it matters |
@@ -26,7 +26,7 @@
 
 | # | Boundary | STRIDE | Threat | Mitigation | Status |
 |---|---|---|---|---|---|
-| T1 | (1) | Spoofing | Forged webhook pretends to be a user | HMAC `X-Hub-Signature-256` verified with `timingSafeEqual`; Telegram secret header (Phase 1) | ✅ WhatsApp |
+| T1 | (1) | Spoofing | Forged webhook pretends to be a user | WhatsApp HMAC `X-Hub-Signature-256`; Telegram `X-Telegram-Bot-Api-Secret-Token`; both via `timingSafeEqual`; production refuses to boot without the secrets | ✅ |
 | T2 | (1) | Spoofing | Signature check skipped by misconfiguration | Check bypass only when `NODE_ENV=development` **and** no secret; production config refuses to boot without `APP_SECRET` | ✅ |
 | T3 | (2) | Spoofing | Dashboard login with someone else's phone number | Replaced by chat-delivered magic link + server session (ADR-006) | ✅ Phase 0 |
 | T4 | (2) | Info disclosure | Login token leaked via logs/Referer | Token in URL fragment (never sent to servers); single-use; 10-min expiry; only hash stored | ✅ |
@@ -37,7 +37,9 @@
 | T9 | (1) | DoS | Message flood → LLM cost spike | Per-user rate limit (20/min); per-user daily token budget (Phase 2) | ⚠️ partial |
 | T10 | (3) | Info disclosure | DB dump exposes usable tokens | Only SHA-256 hashes of login/session tokens stored; OAuth tokens AES-256-GCM (Phase 3) | ✅ / Phase 3 |
 | T11 | (4) | Tampering | Prompt injection via email or note content makes agent act | Untrusted-content spotlighting; approval gates for external effects; injection evals (ADR-010, ADR-013) | Phase 2–3 |
-| T12 | all | Repudiation | Can't tell what the agent did or who logged in | Logins and agent actions recorded (Interaction log, Phase 1) | ⚠️ logs only |
+| T12 | all | Repudiation | Can't tell what the agent did or who logged in | Interaction log records logins, messages and every state change with traceId | ✅ Phase 1 |
+| T17 | (1) | Spoofing | Hijack an account by guessing a `/link` code | 8-char codes (~8.5×10¹¹), hashed, 10-min expiry, 5 attempts/10 min per chat; merging never deletes data | ✅ Phase 1 |
+| T18 | (1) | Tampering | Forged Telegram button callback injects a command | Only whitelisted callback ids map to text | ✅ Phase 1 |
 | T13 | all | Info disclosure | Secrets committed to git | `.env` gitignored; gitleaks in CI | ✅ |
 | T14 | all | Tampering | Vulnerable dependency | `npm audit` gate (high+), Dependabot, CodeQL | ✅ |
 | T15 | (1) | Info disclosure | Unauthenticated debug route triggers mass messages | `/test-digest` route removed | ✅ Phase 0 |
@@ -48,4 +50,3 @@
 |---|---|---|
 | iCal links (`/ical/:id.ics`) are unauthenticated | Opened from chat apps without cookies; ids are unguessable cuids; content is one reminder title | If reminder content becomes sensitive |
 | In-memory rate limits reset on restart and aren't shared across instances | Single instance at current scale | Before running >1 API instance |
-| Message text appears in some info-level logs | Needed for debugging during development | Phase 1: pino redaction |

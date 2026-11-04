@@ -13,12 +13,12 @@ const { getPendingEdit, getPendingConfirm, savePendingEdit, clearPending } = req
 const { handleReminderReply } = require('./scheduler');
 const { handleDelete, handleCancel, handleConfirmAction, handleUndo } = require('./handlers/delete');
 const { handleQuery } = require('./handlers/query');
-const { handleLogin, handleDeleteMyDataRequest, handleDeleteMyDataConfirm } = require('./handlers/account');
-const { sendMessage } = require('./sender');
+const { handleLogin, handleLink, handleDeleteMyDataRequest, handleDeleteMyDataConfirm } = require('./handlers/account');
+const { reply } = require('./channels');
 const { log } = require('./logger');
 
 async function route(user, intent, message) {
-  log('intent.routing', { type: intent.type, phone: user.phone });
+  log('intent.routing', { type: intent.type, userId: user.id });
 
   const text = message.text?.trim().toLowerCase() || '';
 
@@ -36,13 +36,12 @@ async function route(user, intent, message) {
           await clearPending(user.id);
           // Re-save the edit pending (clearPending removed it)
           await savePendingEdit(user.id, item.id, item.summary);
-          await sendMessage(
-            message.from,
+          await reply(message,
             `*Editing*\n"${item.summary}"\n\nSend your updated text to replace it.\nReply CANCEL to leave it as is.`
           );
           return;
         }
-        await sendMessage(message.from, `Invalid number. Pick from 1-${confirm.items.length}.`);
+        await reply(message, `Invalid number. Pick from 1-${confirm.items.length}.`);
         return;
       }
 
@@ -85,7 +84,7 @@ async function route(user, intent, message) {
 
   // ─── SNOOZE / DONE reminder replies ───────────────────────────────────
   if (text === 'done' || text === 'snooze') {
-    const handled = await handleReminderReply(user, message.text);
+    const handled = await handleReminderReply(user, message);
     if (handled) return;
   }
 
@@ -122,6 +121,7 @@ async function route(user, intent, message) {
 
   // ─── Account: dashboard login + data deletion ─────────────────────────
   if (text === '/login') return handleLogin(user, message);
+  if (text === '/link' || text.startsWith('/link ')) return handleLink(user, message);
   if (text === 'delete my data') return handleDeleteMyDataRequest(user, message);
   if (text === 'confirm delete') {
     const handled = await handleDeleteMyDataConfirm(user, message);

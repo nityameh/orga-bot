@@ -3,14 +3,14 @@
 // Actual firing happens in scheduler.js — not here.
 
 const prisma = require('../db');
-const { sendMessage } = require('../sender');
+const { reply } = require('../channels');
 const { log } = require('../logger');
+const { emit, KINDS } = require('../interactions');
 const { getGoogleCalUrl } = require('../ical');
 
 async function handleReminder(user, intent, message) {
   if (!intent.datetime) {
-    await sendMessage(
-      message.from,
+    await reply(message,
       `*Reminder*\n\nWhen should I remind you?\n"remind me tomorrow 9am to ${intent.title}"\n"remind me in 2 hours to ${intent.title}"`
     );
     return;
@@ -19,8 +19,7 @@ async function handleReminder(user, intent, message) {
   const fireAt = new Date(intent.datetime);
 
   if (fireAt <= new Date()) {
-    await sendMessage(
-      message.from,
+    await reply(message,
       `*Reminder*\n\nThat time has already passed. Try a future time:\n"remind me tomorrow 9am to ${intent.title}"`
     );
     return;
@@ -47,7 +46,7 @@ async function handleReminder(user, intent, message) {
 
   const gcalUrl = getGoogleCalUrl(reminder.title, reminder.fireAt);
 
-  const reply = [
+  const replyText = [
     `*Reminder set*`,
     ``,
     `${reminder.title}`,
@@ -56,8 +55,9 @@ async function handleReminder(user, intent, message) {
     `Add to Google Calendar: ${gcalUrl}`,
   ].join('\n');
 
-  await sendMessage(message.from, reply);
+  await reply(message, replyText);
   log('reminder.created', { userId: user.id, reminderId: reminder.id, fireAt: reminder.fireAt });
+  emit({ kind: KINDS.REMINDER_CREATED, userId: user.id, person: intent.client, summary: reminder.title, payload: { reminderId: reminder.id, fireAt: reminder.fireAt.toISOString() } });
 }
 
 async function snoozeReminder(reminderId, minutes = 60) {

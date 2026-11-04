@@ -7,7 +7,7 @@ const express = require('express');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const { getConfig } = require('./config');
-const { handleWebhookVerify, handleWebhookMessage } = require('./webhook');
+const { createWebhookRouter } = require('./pipeline');
 const { authHttp } = require('./auth');
 const prisma = require('./db');
 const { generateIcsContent } = require('./ical');
@@ -37,8 +37,8 @@ function createApp() {
   }));
   app.use(cookieParser());
 
-  app.get('/webhook', handleWebhookVerify);
-  app.post('/webhook', handleWebhookMessage);
+  // Chat channel webhooks: one route set per registered adapter (ADR-003).
+  app.use(createWebhookRouter());
 
   // Dashboard API: /auth is public (exchange/logout), everything else needs a session.
   app.use('/api/v1/auth', authHttp.requireJsonForMutations, authHttp.router);

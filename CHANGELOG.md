@@ -6,6 +6,22 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Commits follow
 
 ## [Unreleased]
 
+### Phase 1: Multi-channel + Interaction log
+#### Added
+- Telegram channel alongside WhatsApp via `ChannelAdapter` interface and registry (ADR-003)
+- `ChannelIdentity` model (one user, many chat accounts) with backfill migration for existing users
+- `/link` command to join WhatsApp and Telegram chats into one account
+- `notifyUser()` for proactive messages: most-recent channel, WhatsApp 24h-window template fallback
+- Append-only `Interaction` log fed by an in-process event bus (ADR-005); 16 event kinds
+- Per-message `traceId` via AsyncLocalStorage, included in logs and Interaction rows
+- `scripts/setup-telegram.js` to register the Telegram webhook
+#### Changed
+- Handlers reply through channel-agnostic `reply(message, …)`; `webhook.js`/`sender.js` replaced by `pipeline.js` + adapters
+- Logger redacts user content (`text`, `title`, `token`, …)
+- `User.phone` is optional (Telegram users have none)
+#### Fixed
+- Handlers' local `reply` variables shadowed the reply function (caught by ESLint during refactor)
+
 ### Phase 0: Engineering foundation
 #### Security
 - Dashboard login replaced: phone-number auth → chat-delivered magic link + server-side sessions (ADR-006)

@@ -6,7 +6,10 @@ Each starts with a plain-language summary, then goes into detail.
 | Module | Doc | Source |
 |---|---|---|
 | Auth (dashboard login, sessions) | [auth.md](auth.md) | `src/auth/` |
-| Messaging pipeline (webhook, sender, classifier, router, pending) | [messaging-pipeline.md](messaging-pipeline.md) | `src/webhook.js`, `src/sender.js`, `src/classifier.js`, `src/router.js`, `src/pending.js` |
+| Channels (WhatsApp, Telegram adapters; reply, notifyUser) | [channels.md](channels.md) | `src/channels/` |
+| Messaging pipeline (webhooks → classify → route) | [messaging-pipeline.md](messaging-pipeline.md) | `src/pipeline.js`, `src/classifier.js`, `src/router.js`, `src/pending.js` |
+| Interactions (event bus, Interaction log, trace context) | [interactions.md](interactions.md) | `src/interactions/`, `src/context.js` |
+| Users (identity, channel linking) | [users.md](users.md) | `src/users/` |
 | Handlers (notes, tasks, reminders, queries, commands, account) | [handlers.md](handlers.md) | `src/handlers/` |
 | Scheduler | [scheduler.md](scheduler.md) | `src/scheduler.js` |
 | Dashboard REST API | [api.md](api.md) | `src/api/` |

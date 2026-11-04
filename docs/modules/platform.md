@@ -15,14 +15,15 @@ calendar-file generation. Nothing here knows about notes, tasks or chat.
 | `app.js` | `createApp()` builds the Express app: security headers, CORS, body parsing (raw body kept for webhook HMAC), cookies, routes, central error handler. No `listen()`, so tests can mount it |
 | `config.js` | Zod schema for environment variables. `getConfig()` (cached) / `parseConfig(env)` (pure, for tests). Production requires WhatsApp secrets and an https dashboard URL |
 | `db.js` | The single `PrismaClient` instance. Never create another |
-| `logger.js` | `log/warn/error(event, data)`: one JSON line per event, searchable in Railway |
+| `logger.js` | `log/warn/error(event, data)`: one JSON line per event with `traceId` from the request context; user content keys (`text`, `title`, `token`, …) are redacted to their length |
 | `ratelimiter.js` | `createRateLimiter({limit, windowMs})` fixed-window limiter with bounded memory; `isRateLimited(phone)` for chat (20/min) |
 | `ical.js` | `.ics` generation and Google Calendar "add event" links |
 
 ## HTTP surface (from `app.js`)
 | Route | Auth | Purpose |
 |---|---|---|
-| `GET /webhook`, `POST /webhook` | Meta verify token / HMAC | WhatsApp ([messaging-pipeline.md](messaging-pipeline.md)) |
+| `GET /webhook`, `POST /webhook` | Meta verify token / HMAC | WhatsApp ([channels.md](channels.md)) |
+| `POST /webhooks/telegram` | secret-token header | Telegram ([channels.md](channels.md)) |
 | `/api/v1/auth/*` | public | Login exchange, logout, me ([auth.md](auth.md)) |
 | `/api/v1/*` | session cookie | Dashboard API ([api.md](api.md)) |
 | `GET /ical/:id.ics` | none (unguessable id) | Calendar download |
