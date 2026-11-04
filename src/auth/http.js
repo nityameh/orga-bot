@@ -15,8 +15,9 @@ const SESSION_COOKIE = 'orga_session';
  * @param {import('./authService').AuthService} deps.authService
  * @param {(userId: string) => Promise<unknown | null>} deps.findUser
  * @param {boolean} deps.secureCookies  true in production (HTTPS only)
+ * @param {(userId: string) => void} [deps.onLogin]  Hook for audit/analytics (keeps this module decoupled)
  */
-function createAuthHttp({ authService, findUser, secureCookies }) {
+function createAuthHttp({ authService, findUser, secureCookies, onLogin }) {
   const isExchangeLimited = createRateLimiter({ limit: 10, windowMs: 60 * 1000 });
 
   /** @type {express.CookieOptions} */
@@ -87,6 +88,7 @@ function createAuthHttp({ authService, findUser, secureCookies }) {
 
       res.cookie(SESSION_COOKIE, result.sessionToken, { ...cookieOptions, expires: result.expiresAt });
       log('auth.login', { userId: result.userId });
+      onLogin?.(result.userId);
       res.json({ ok: true });
     } catch (err) {
       next(err);

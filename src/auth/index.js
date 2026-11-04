@@ -9,6 +9,7 @@ const { getConfig } = require('../config');
 const { createAuthService } = require('./authService');
 const { createPrismaAuthRepository } = require('./prismaAuthRepository');
 const { createAuthHttp, SESSION_COOKIE } = require('./http');
+const { emit, KINDS } = require('../interactions');
 
 const config = getConfig();
 
@@ -23,6 +24,7 @@ const authHttp = createAuthHttp({
   authService,
   findUser: (userId) => prisma.user.findUnique({ where: { id: userId } }),
   secureCookies: config.NODE_ENV === 'production',
+  onLogin: (userId) => emit({ kind: KINDS.AUTH_LOGIN, userId, channel: 'dashboard' }),
 });
 
 module.exports = { authService, authHttp, SESSION_COOKIE };

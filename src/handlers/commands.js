@@ -2,7 +2,7 @@
 // Handles /today, /notes, /list, /schedule, /search
 
 const prisma = require('../db');
-const { sendMessage } = require('../sender');
+const { reply } = require('../channels');
 const { log } = require('../logger');
 const { savePendingList, savePendingEdit, getPendingEdit, getPendingItem, savePendingConfirm, clearPending } = require('../pending');
 
@@ -79,7 +79,7 @@ async function handleToday(user, intent, message) {
     lines.push('All caught up.');
   }
 
-  await sendMessage(message.from, lines.join('\n'));
+  await reply(message, lines.join('\n'));
   log('command.today', { userId: user.id });
 }
 
@@ -108,7 +108,7 @@ async function handleList(user, intent, message) {
     const msg = filterRaw
       ? `*Notes*\n\nNo notes found for "${filterRaw}". Try /notes to see all.`
       : `*Notes*\n\nNo notes yet — send me anything to save it.`;
-    await sendMessage(message.from, msg);
+    await reply(message, msg);
     return;
   }
 
@@ -127,7 +127,7 @@ async function handleList(user, intent, message) {
   const numberedItems = notes.map((n, i) => ({ pos: i + 1, id: n.id, summary: n.title }));
   await savePendingList(user.id, 'note_list', numberedItems);
 
-  await sendMessage(message.from, lines.join('\n'));
+  await reply(message, lines.join('\n'));
   log('command.notes', { userId: user.id, filter: filterRaw || null });
 }
 
@@ -152,7 +152,7 @@ async function handleListTasks(user, intent, message) {
   });
 
   if (tasks.length === 0) {
-    await sendMessage(message.from,
+    await reply(message,
       `*Task Lists*\n\nNo task lists yet. Try: "tasks: send invoice, review brief, call Ravi"`
     );
     return;
@@ -169,7 +169,7 @@ async function handleListTasks(user, intent, message) {
   const numberedItems = tasks.map((t, i) => ({ pos: i + 1, id: t.id, summary: t.title }));
   await savePendingList(user.id, 'task_list', numberedItems);
 
-  await sendMessage(message.from, lines.join('\n'));
+  await reply(message, lines.join('\n'));
   log('command.list', { userId: user.id, filter: filterRaw || null });
 }
 
@@ -189,7 +189,7 @@ async function handleSchedule(user, intent, message) {
   });
 
   if (reminders.length === 0) {
-    await sendMessage(message.from,
+    await reply(message,
       `*Schedule*\n\nNothing scheduled for the next 7 days.\nSet one: "remind me tomorrow 9am to call Ravi"`
     );
     return;
@@ -209,7 +209,7 @@ async function handleSchedule(user, intent, message) {
   const numberedItems = reminders.map((r, i) => ({ pos: i + 1, id: r.id, summary: r.title }));
   await savePendingList(user.id, 'reminder_list', numberedItems);
 
-  await sendMessage(message.from, lines.join('\n'));
+  await reply(message, lines.join('\n'));
   log('command.schedule', { userId: user.id });
 }
 
@@ -222,7 +222,7 @@ async function handleSearch(user, intent, message) {
     .trim();
 
   if (!query) {
-    await sendMessage(message.from,
+    await reply(message,
       `*Search*\n\nWhat are you looking for?\n/search acme\n/search #note\n/search this week`
     );
     return;
@@ -291,7 +291,7 @@ async function handleSearch(user, intent, message) {
 
   if (results.length === 0) {
     const hint = filters.type ? `No ${filters.type}s for "${keyword || 'that filter'}"` : `No results for "${query}"`;
-    await sendMessage(message.from, `*Search*\n\n${hint}\nTry /search without filters.`);
+    await reply(message, `*Search*\n\n${hint}\nTry /search without filters.`);
     return;
   }
 
@@ -319,7 +319,7 @@ async function handleSearch(user, intent, message) {
     }
   }
 
-  await sendMessage(message.from, lines.join('\n'));
+  await reply(message, lines.join('\n'));
   log('command.search', { userId: user.id, query, filters, resultCount: results.length });
 }
 
@@ -374,13 +374,12 @@ async function handleHelp(user, intent, message) {
     `/help — this message`,
   ].join('\n');
 
-  await sendMessage(message.from, help);
+  await reply(message, help);
 }
 
 // ─── /unknown ──────────────────────────────────────────────────────────────
 async function handleUnknown(user, intent, message) {
-  await sendMessage(
-    message.from,
+  await reply(message,
     `*Orga*\n\nSend me notes, tasks, or reminders — I'll keep track.\n\n/today — your day\n/help — full list of commands`
   );
 }
@@ -393,8 +392,7 @@ async function handleClient(user, message) {
     .toLowerCase();
 
   if (!raw) {
-    await sendMessage(
-      message.from,
+    await reply(message,
       `*Client*\n\nWho do you want to look up?\n/client rahul\n/client acme`
     );
     return;
@@ -460,8 +458,7 @@ async function handleClient(user, message) {
   ]);
 
   if (notes.length === 0 && tasks.length === 0 && reminders.length === 0) {
-    await sendMessage(
-      message.from,
+    await reply(message,
       `*${capitalise(raw)}*\n\nNo results found. Save a note first: "meeting with ${raw} — ..."`
     );
     return;
@@ -509,7 +506,7 @@ async function handleClient(user, message) {
     notes.forEach((n, i) => lines.push(`${i + 1}. ${n.title} · ${timeAgo(n.createdAt)}`));
   }
 
-  await sendMessage(message.from, lines.join('\n'));
+  await reply(message, lines.join('\n'));
   log('command.client', { userId: user.id, client: raw });
 }
 
@@ -574,7 +571,7 @@ async function handleExport(user, intent, message) {
   });
 
   if (notes.length === 0) {
-    await sendMessage(message.from, `*Export*\n\nNo notes to export yet — send me anything to save it.`);
+    await reply(message, `*Export*\n\nNo notes to export yet — send me anything to save it.`);
     return;
   }
 
@@ -605,7 +602,7 @@ async function handleExport(user, intent, message) {
 
   // WhatsApp max is ~4096 chars. Split if needed.
   if (fullText.length <= 4000) {
-    await sendMessage(message.from, fullText);
+    await reply(message, fullText);
   } else {
     // Split into chunks at note boundaries
     let chunk = [];
@@ -614,7 +611,7 @@ async function handleExport(user, intent, message) {
 
     for (const line of lines) {
       if (chunkLen + line.length > 3800 && chunk.length > 0) {
-        await sendMessage(message.from, `*Export (part ${part})*\n\n${chunk.join('\n')}`);
+        await reply(message, `*Export (part ${part})*\n\n${chunk.join('\n')}`);
         chunk = [];
         chunkLen = 0;
         part++;
@@ -624,7 +621,7 @@ async function handleExport(user, intent, message) {
     }
 
     if (chunk.length > 0) {
-      await sendMessage(message.from, `*Export (part ${part})*\n\n${chunk.join('\n')}`);
+      await reply(message, `*Export (part ${part})*\n\n${chunk.join('\n')}`);
     }
   }
 }
@@ -650,7 +647,7 @@ async function handlePrivacy(user, intent, message) {
     'To delete all your data, reply: DELETE MY DATA',
   ].join('\n');
 
-  await sendMessage(message.from, reply);
+  await reply(message, reply);
 }
 
 // ─── Edit note — "edit N" or "edit meeting note" ─────────────────────────
@@ -667,16 +664,14 @@ async function handleEditInit(user, message) {
     const item = await getPendingItem(user.id, 'note_list', pos);
 
     if (!item) {
-      await sendMessage(
-        message.from,
+      await reply(message,
         `*Edit*\n\nNote ${pos} not found.\nList expires after 10 minutes — try /notes again.`
       );
       return true;
     }
 
     await savePendingEdit(user.id, item.id, item.summary);
-    await sendMessage(
-      message.from,
+    await reply(message,
       `*Editing*\n"${item.summary}"\n\nSend your updated text to replace it.\nReply CANCEL to leave it as is.`
     );
     return true;
@@ -701,8 +696,7 @@ async function handleEditInit(user, message) {
   });
 
   if (notes.length === 0) {
-    await sendMessage(
-      message.from,
+    await reply(message,
       `*Edit*\n\nNo notes found matching "${matchText[1]}".\nTry /notes to see all.`
     );
     return true;
@@ -710,8 +704,7 @@ async function handleEditInit(user, message) {
 
   if (notes.length === 1) {
     await savePendingEdit(user.id, notes[0].id, notes[0].title);
-    await sendMessage(
-      message.from,
+    await reply(message,
       `*Editing*\n"${notes[0].title}"\n\nSend your updated text to replace it.\nReply CANCEL to leave it as is.`
     );
     return true;
@@ -731,7 +724,7 @@ async function handleEditInit(user, message) {
     summary: n.title,
   })));
 
-  await sendMessage(message.from, lines.join('\n'));
+  await reply(message, lines.join('\n'));
   return true;
 }
 
@@ -742,7 +735,7 @@ async function handleEditComplete(user, message, classify) {
 
   if (message.text.trim().toUpperCase() === 'CANCEL') {
     await clearPending(user.id);
-    await sendMessage(message.from, '*Edit cancelled*');
+    await reply(message, '*Edit cancelled*');
     return true;
   }
 
@@ -768,8 +761,7 @@ async function handleEditComplete(user, message, classify) {
   await clearPending(user.id);
 
   const tags = intent.tags?.length ? `\n${intent.tags.join(' ')}` : '';
-  await sendMessage(
-    message.from,
+  await reply(message,
     `*Updated*\n"${intent.title || message.text.substring(0, 60)}"${tags}`
   );
 

@@ -24,6 +24,10 @@ const EnvSchema = z
     WEBHOOK_VERIFY_TOKEN: optionalString,
     APP_SECRET: optionalString,
 
+    // Telegram (optional channel) — ADR-003
+    TELEGRAM_BOT_TOKEN: optionalString,
+    TELEGRAM_WEBHOOK_SECRET: optionalString,
+
     // LLM
     GROQ_API_KEY: optionalString,
 
@@ -39,6 +43,9 @@ const EnvSchema = z
       if (!env[key]) {
         ctx.addIssue({ code: 'custom', path: [key], message: 'required in production' });
       }
+    }
+    if (env.TELEGRAM_BOT_TOKEN && !env.TELEGRAM_WEBHOOK_SECRET) {
+      ctx.addIssue({ code: 'custom', path: ['TELEGRAM_WEBHOOK_SECRET'], message: 'required in production when TELEGRAM_BOT_TOKEN is set' });
     }
     if (env.DASHBOARD_URL.startsWith('http://')) {
       ctx.addIssue({ code: 'custom', path: ['DASHBOARD_URL'], message: 'must be https in production' });

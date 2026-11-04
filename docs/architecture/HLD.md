@@ -104,7 +104,8 @@ Sync job (incremental history id) → for each new email from a known person:
 | Entity | Purpose |
 |---|---|
 | User | Account |
-| ChannelIdentity | (channel, externalId) → user. One user, many channels |
+| ChannelIdentity | (channel, externalId) → user. One user, many channels (✅ Phase 1) |
+| LinkCode | Short-lived code to join another channel to an account (✅ Phase 1) |
 | Session / LoginToken | Dashboard auth |
 | Person | Clients, colleagues, contacts merged across sources |
 | Note, Task, Reminder | User content (existing) |
@@ -112,7 +113,7 @@ Sync job (incremental history id) → for each new email from a known person:
 | Memory | Consolidated facts about people and preferences |
 | Embedding | pgvector chunks over notes, emails, memories |
 | Integration | Encrypted OAuth tokens per provider |
-| Interaction | Append-only event log: the backbone for analytics, audit and proactive work |
+| Interaction | Append-only event log: the backbone for analytics, audit and proactive work (✅ Phase 1) |
 
 ## 7. Cross-Cutting Concerns
 
@@ -130,7 +131,7 @@ Sync job (incremental history id) → for each new email from a known person:
 
 | Area | Today | Target |
 |---|---|---|
-| Channels | WhatsApp only, hard-wired | Adapter registry: WhatsApp + Telegram |
+| Channels | ✅ Adapter registry: WhatsApp + Telegram (Phase 1) | Adapter registry: WhatsApp + Telegram |
 | Brain | One-shot classifier (Groq Llama 3.3) | Tool-use agent loop (Claude + Groq) |
 | Dashboard auth | ✅ Magic link + sessions (Phase 0) | Magic link + sessions |
 | Jobs | node-cron polling in web process | pg-boss in worker process |

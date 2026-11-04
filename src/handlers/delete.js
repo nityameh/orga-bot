@@ -4,9 +4,10 @@
 // Text-based inputs present matching options for user to confirm with a number.
 
 const prisma = require('../db');
-const { sendMessage } = require('../sender');
+const { reply } = require('../channels');
 const { getPendingItem, savePendingConfirm, clearPending } = require('../pending');
 const { log } = require('../logger');
+const { emit, KINDS } = require('../interactions');
 
 // ─── handleDelete ─────────────────────────────────────────────────────────
 // "delete 2"           → direct delete from pending list
@@ -32,14 +33,13 @@ async function handleDelete(user, message) {
     }
 
     if (!item) {
-      await sendMessage(
-        message.from,
+      await reply(message,
         `*Delete*\n\nItem ${pos} not found.\nList expires after 10 minutes — try /notes or /list again.`
       );
       return true;
     }
 
-    return await executeDelete(user, message.from, type, item);
+    return await executeDelete(user, message, type, item);
   }
 
   // Text-based delete — search and present options
@@ -47,8 +47,7 @@ async function handleDelete(user, message) {
   const results = await searchForDelete(user.id, query);
 
   if (results.length === 0) {
-    await sendMessage(
-      message.from,
+    await reply(message,
       `*Delete*\n\nNo matching items found for "${matchText[1]}".\nTry /notes or /list to see everything.`
     );
     return true;
@@ -56,7 +55,7 @@ async function handleDelete(user, message) {
 
   if (results.length === 1) {
     // Single match — delete directly
-    return await executeDelete(user, message.from, results[0].type, results[0]);
+    return await executeDelete(user, message, results[0].type, results[0]);
   }
 
   // Multiple matches — ask for confirmation
@@ -74,7 +73,7 @@ async function handleDelete(user, message) {
     summary: r.summary,
   })));
 
-  await sendMessage(message.from, lines.join('\n'));
+  await reply(message, lines.join('\n'));
   return true;
 }
 
@@ -95,16 +94,16 @@ async function handleCancel(user, message) {
     const item = await getPendingItem(user.id, 'reminder_list', pos);
 
     if (!item) {
-      await sendMessage(
-        message.from,
+      await reply(message,
         `*Cancel*\n\nReminder ${pos} not found.\nList expires after 10 minutes — try /schedule again.`
       );
       return true;
     }
 
     await prisma.reminder.delete({ where: { id: item.id } });
-    await sendMessage(message.from, `*Cancelled* — "${item.summary}"`);
+    await reply(message, `*Cancelled* — "${item.summary}"`);
     log('reminder.cancelled', { userId: user.id, reminderId: item.id });
+    emit({ kind: KINDS.REMINDER_CANCELLED, userId: user.id, summary: item.summary, payload: { reminderId: item.id } });
     await clearPending(user.id);
     return true;
   }
@@ -123,8 +122,7 @@ async function handleCancel(user, message) {
   });
 
   if (reminders.length === 0) {
-    await sendMessage(
-      message.from,
+    await reply(message,
       `*Cancel*\n\nNo reminders found matching "${matchText[1]}".\nTry /schedule to see all.`
     );
     return true;
@@ -132,8 +130,9 @@ async function handleCancel(user, message) {
 
   if (reminders.length === 1) {
     await prisma.reminder.delete({ where: { id: reminders[0].id } });
-    await sendMessage(message.from, `*Cancelled* — "${reminders[0].title}"`);
+    await reply(message, `*Cancelled* — "${reminders[0].title}"`);
     log('reminder.cancelled', { userId: user.id, reminderId: reminders[0].id });
+    emit({ kind: KINDS.REMINDER_CANCELLED, userId: user.id, summary: reminders[0].title, payload: { reminderId: reminders[0].id } });
     return true;
   }
 
@@ -156,7 +155,7 @@ async function handleCancel(user, message) {
     summary: r.title,
   })));
 
-  await sendMessage(message.from, lines.join('\n'));
+  await reply(message, lines.join('\n'));
   return true;
 }
 
@@ -168,21 +167,21 @@ async function handleConfirmAction(user, message, confirm) {
   const item = confirm.items.find(i => i.pos === num);
 
   if (!item) {
-    await sendMessage(
-      message.from,
+    await reply(message,
       `Invalid number. Pick from 1-${confirm.items.length}.`
     );
     return true;
   }
 
   if (confirm.action === 'delete') {
-    return await executeDelete(user, message.from, item.type, item);
+    return await executeDelete(user, message, item.type, item);
   }
 
   if (confirm.action === 'cancel') {
     await prisma.reminder.delete({ where: { id: item.id } });
-    await sendMessage(message.from, `*Cancelled* — "${item.summary}"`);
+    await reply(message, `*Cancelled* — "${item.summary}"`);
     log('reminder.cancelled', { userId: user.id, reminderId: item.id });
+    emit({ kind: KINDS.REMINDER_CANCELLED, userId: user.id, summary: item.summary, payload: { reminderId: item.id } });
     await clearPending(user.id);
     return true;
   }
@@ -209,8 +208,7 @@ async function handleUndo(user, message) {
   });
 
   if (!note) {
-    await sendMessage(
-      message.from,
+    await reply(message,
       `*Undo*\n\nNothing to undo. Works within 5 minutes of deleting a note.`
     );
     return true;
@@ -221,26 +219,27 @@ async function handleUndo(user, message) {
     data: { deletedAt: null },
   });
 
-  await sendMessage(message.from, `*Restored* — "${note.title}"`);
+  await reply(message, `*Restored* — "${note.title}"`);
   log('note.restored', { userId: user.id, noteId: note.id });
   return true;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
 
-async function executeDelete(user, phone, type, item) {
+async function executeDelete(user, message, type, item) {
   if (type === 'note') {
     await prisma.note.update({
       where: { id: item.id },
       data: { deletedAt: new Date() },
     });
-    await sendMessage(phone, `*Deleted* — "${item.summary}"\n\nReply UNDO within 5 minutes to restore.`);
+    await reply(message, `*Deleted* — "${item.summary}"\n\nReply UNDO within 5 minutes to restore.`);
     log('note.deleted', { userId: user.id, noteId: item.id });
+    emit({ kind: KINDS.NOTE_DELETED, userId: user.id, summary: item.summary, payload: { noteId: item.id } });
   }
 
   if (type === 'task') {
     await prisma.task.delete({ where: { id: item.id } });
-    await sendMessage(phone, `*Removed* — "${item.summary}"`);
+    await reply(message, `*Removed* — "${item.summary}"`);
     log('task.deleted', { userId: user.id, taskId: item.id });
   }
 

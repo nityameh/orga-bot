@@ -1,39 +1,36 @@
 # Module: messaging pipeline
 
-> **Path:** `src/webhook.js`, `src/sender.js`, `src/classifier.js`, `src/router.js`, `src/pending.js`
-> **Status:** Stable; refactored in Phase 1 (channels) and Phase 2 (agent)
-> **Related ADRs:** [ADR-003](../adr/ADR-003-channel-adapter.md), [ADR-004](../adr/ADR-004-agent-loop-and-llm-providers.md)
+> **Path:** `src/pipeline.js`, `src/classifier.js`, `src/router.js`, `src/pending.js`
+> **Status:** Stable (channel-agnostic since Phase 1); agent loop replaces classifier + router in Phase 2
+> **Related ADRs:** [ADR-003](../adr/ADR-003-channel-adapter.md), [ADR-004](../adr/ADR-004-agent-loop-and-llm-providers.md), [ADR-005](../adr/ADR-005-interaction-event-log.md)
 
 ## Summary (read this first)
-This is the path a chat message takes: WhatsApp calls our webhook, we check the
-message really came from Meta, work out what the user wants (a note? a
-reminder? a question?), hand it to the right handler, and send the reply back.
+This is the path every chat message takes, whichever app it came from: check
+it really came from WhatsApp/Telegram, work out who sent it, work out what they
+want (a note? a reminder? a question?), hand it to the right handler, and reply
+on the same app. Channel details live in [channels.md](channels.md).
 
 ## Files
 | File | What it contains |
 |---|---|
-| `webhook.js` | `GET /webhook` Meta verification; `POST /webhook`: HMAC check → 200 immediately → dedupe → rate limit → upsert user → classify → route |
-| `sender.js` | `sendMessage(to, text)`, `sendButtons(to, text, buttons)` via Meta Graph API. Without `WHATSAPP_TOKEN`, prints to console (dev mode) |
-| `classifier.js` | `classify(text)` → intent JSON via Groq Llama 3.3 (temperature 0). Falls back to keyword rules if the API fails or returns invalid JSON |
-| `router.js` | `route(user, intent, message)`: command interceptors first (numbers, done, edit, delete, cancel, undo, slash commands, `/login`, account deletion), then switch on `intent.type` |
+| `pipeline.js` | `createWebhookRouter()` mounts each adapter's webhook; `processInbound(message)` runs rate limit → `resolveUser` → welcome or classify → route, inside a per-message trace context |
+| `classifier.js` | `classify(text)` → intent JSON via Groq Llama 3.3 (temperature 0). Falls back to keyword rules if the API fails, returns invalid JSON, or has no key |
+| `router.js` | `route(user, intent, message)`: interceptors first (numbers, done, edit, delete, cancel, undo, slash commands, `/login`, `/link`, account deletion), then switch on `intent.type` |
 | `pending.js` | Short-lived conversational state in `PendingAction` (numbered lists, edit-in-progress, confirmations), 10-minute TTL |
 
 ## How It Works
 ```
-Meta ──POST /webhook──► verifySignature (HMAC-SHA256 of raw body, timing-safe)
-                         │ invalid → 403
-                         ▼
-                       res 200 (Meta retries if no 200 within ~3s; everything after is async)
-                         ▼
-                       extractMessage → text or button reply only
-                         ▼
-                       isDuplicate(wamid)  (in-memory, last 100 ids)
-                         ▼
-                       isRateLimited(phone)  (20/min, silent drop)
-                         ▼
-                       upsertUser → new user? send welcome and stop
-                         ▼
-                       classify(text) ──► route(user, intent, message) ──► handler ──► sendMessage
+POST <adapter.webhookPath> ─► adapter.verifyRequest   (invalid → 403)
+                            ─► 200 immediately        (platforms retry slow webhooks)
+                            ─► adapter.parseInbound → InboundMessage[]
+                            ─► dedupe "<channel>:<messageId>" (in-memory, last 1000)
+                            ─► runWithContext({ traceId, channel })
+                                  adapter.acknowledge (Telegram button spinner)
+                                  rate limit "<channel>:<externalId>" (20/min)
+                                  resolveUser → emit message.received
+                                  new user? → welcome, stop
+                                  classify → route → handler → reply()
+                            ─► on error: log + "Something went wrong" reply
 ```
 
 ## Intent types
@@ -43,11 +40,10 @@ The keyword fallback never returns `UNKNOWN`; it defaults to `NOTE` (save rather
 ## Known limitations (addressed by the roadmap)
 | Limitation | Fix |
 |---|---|
-| WhatsApp-only; handlers call `sendMessage(message.from, …)` | Phase 1: `ChannelAdapter` + Telegram |
 | Commands like `/login` still pay for an LLM classification | Phase 2: agent loop with deterministic command fast-path |
 | Dedupe and rate limits are in-memory (lost on restart, per instance) | Accepted at current scale (threat model) |
 | One intent per message | Phase 2: multi-step tool use |
 
 ## Testing
 Classifier behaviour lives in `evals/` (calls the live LLM; `npm run evals:legacy`).
-Handlers reached through the router are covered in `test/integration/handlers.test.js`.
+Handlers: `test/integration/handlers.test.js`. Full pipeline (webhook → DB → Interactions): `test/integration/pipeline.test.js`.

@@ -30,11 +30,13 @@ phase until the previous exit criterion passes. Tick items in the PR that comple
 **Exit:** a PR with a failing test or lint error cannot merge; the dashboard cannot be read without logging in.
 
 ## Phase 1: Multi-Channel + Event Log
-- [ ] `ChannelAdapter` interface + registry; WhatsApp moved behind it ([ADR-003](adr/ADR-003-channel-adapter.md))
-- [ ] Telegram adapter (webhook secret header, inline keyboards)
-- [ ] `ChannelIdentity` table; existing users migrated
-- [ ] Event bus + `Interaction` log; every handler emits events ([ADR-005](adr/ADR-005-interaction-event-log.md))
-- [ ] Structured logging with `traceId` (pino)
+- [x] `ChannelAdapter` interface + registry; WhatsApp moved behind it ([ADR-003](adr/ADR-003-channel-adapter.md))
+- [x] Telegram adapter (webhook secret header, inline keyboards, Markdown fallback)
+- [x] `ChannelIdentity` table; existing users migrated
+- [x] `/link` cross-channel account linking
+- [x] Proactive `notifyUser()` with WhatsApp 24h-window template fallback
+- [x] Event bus + `Interaction` log; every handler emits events ([ADR-005](adr/ADR-005-interaction-event-log.md))
+- [x] Structured logging with `traceId` (AsyncLocalStorage) and PII redaction (pino deferred: no need yet)
 
 **Exit:** the same conversation works on WhatsApp and Telegram, and each message appears in `Interaction` with a traceId.
 

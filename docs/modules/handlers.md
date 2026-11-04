@@ -17,14 +17,15 @@ and sends one reply.
 | `query.js` | Questions answered from saved data (keyword retrieval → LLM answer with sources) | `handleQuery`, `retrieveContext` |
 | `commands.js` | `/today`, `/notes`, `/list`, `/schedule`, `/search`, `/client`, `/export`, `/privacy`, `/help`, edit flow, unknown/greeting | `handleToday`, `handleSearch`, `handleClient`, `handleEditInit/Complete`, … |
 | `delete.js` | Delete/cancel by number or text, confirmations, 5-minute undo for notes (soft delete) | `handleDelete`, `handleCancel`, `handleConfirmAction`, `handleUndo` |
-| `account.js` | `/login` magic link; `delete my data` → `confirm delete` (transactional hard delete) | `handleLogin`, `handleDeleteMyDataRequest`, `handleDeleteMyDataConfirm` |
+| `account.js` | `/login` magic link; `/link` cross-channel linking; `delete my data` → `confirm delete` (transactional hard delete) | `handleLogin`, `handleLink`, `handleDeleteMyDataRequest`, `handleDeleteMyDataConfirm` |
 
 ## Contract every handler follows
 1. Signature `(user, intent, message)` or `(user, message)`; returns nothing, or
    `true/false` when used as an interceptor ("did I handle it?").
 2. All queries filter by `user.id`.
-3. Exactly one user-facing reply per message (≤ 4 lines, see CLAUDE.md §9).
-4. Log one `domain.action` event with ids, never message bodies.
+3. Reply with `reply(message, text, buttons?)` from `src/channels`. Never call a channel API directly.
+4. Exactly one user-facing reply per message (≤ 4 lines, see CLAUDE.md §9).
+5. `emit()` one domain event for every state change (see [interactions.md](interactions.md)) and log with ids, never message bodies.
 
 ## Edge Cases
 | Situation | Behaviour |

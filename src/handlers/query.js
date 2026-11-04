@@ -11,8 +11,9 @@
 
 const Groq = require('groq-sdk');
 const prisma = require('../db');
-const { sendMessage } = require('../sender');
+const { reply } = require('../channels');
 const { log, warn } = require('../logger');
+const { emit, KINDS } = require('../interactions');
 
 // Created lazily so the app can start without GROQ_API_KEY.
 let groq;
@@ -48,7 +49,7 @@ async function handleQuery(user, intent, message) {
   const totalDocs = context.notes.length + context.tasks.length + context.reminders.length;
 
   if (totalDocs === 0) {
-    await sendMessage(message.from,
+    await reply(message,
       `*Answer*\n\nI don't have any notes about that. Save some notes first and then ask me.`
     );
     log('query.no_context', { userId: user.id, question: question.substring(0, 60) });
@@ -77,7 +78,7 @@ async function handleQuery(user, intent, message) {
   } catch (err) {
     warn('query.llm_error', { err: err.message });
     // Fallback: return the raw context as a list instead of an answer
-    await sendMessage(message.from,
+    await reply(message,
       `*Answer*\n\nCouldn't generate an answer right now. Here's what I found:\n\n${fallbackList(context)}`
     );
     return;
@@ -96,7 +97,7 @@ async function handleQuery(user, intent, message) {
     return `"${s.title}" (${date})`;
   }).join(', ');
 
-  const reply = [
+  const replyText = [
     `*Answer*`,
     ``,
     answer,
@@ -104,8 +105,9 @@ async function handleQuery(user, intent, message) {
     sourceText ? `_Sources: ${sourceText}_` : null,
   ].filter(Boolean).join('\n');
 
-  await sendMessage(message.from, reply);
+  await reply(message, replyText);
   log('query.answered', { userId: user.id, question: question.substring(0, 60), docsUsed: totalDocs });
+  emit({ kind: KINDS.QUERY_ANSWERED, userId: user.id, person: intent.client, payload: { docsUsed: totalDocs } });
 }
 
 // ─── Retrieval: search DB for relevant documents ──────────────────────────
