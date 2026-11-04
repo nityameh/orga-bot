@@ -1,6 +1,6 @@
 # ADR-001: Evaluation of Current Architecture vs. Documented Design
 
-**Status:** Proposed
+**Status:** Superseded by ADR-002
 **Date:** 2026-08-10
 **Deciders:** Nitya (project owner)
 
