@@ -39,7 +39,7 @@ async function savePendingApprovals(userId, requests) {
       expiresAt: new Date(Date.now() + TTL_MINUTES * 60 * 1000),
     },
   });
-  for (const r of requests) emit({ kind: KINDS.APPROVAL_REQUESTED, userId, summary: r.summary, payload: { tool: r.toolName } });
+  for (const r of requests) await emit({ kind: KINDS.APPROVAL_REQUESTED, userId, summary: r.summary, payload: { tool: r.toolName } });
 }
 
 /**
@@ -71,14 +71,14 @@ async function resolveApproval(user, decision, executeApproved) {
   if (!requests) return null;
 
   if (decision === 'REJECT') {
-    for (const r of requests) emit({ kind: KINDS.APPROVAL_REJECTED, userId: user.id, summary: r.summary, payload: { tool: r.toolName } });
+    for (const r of requests) await emit({ kind: KINDS.APPROVAL_REJECTED, userId: user.id, summary: r.summary, payload: { tool: r.toolName } });
     return `Cancelled — nothing was done.`;
   }
 
   const lines = [];
   for (const r of requests) {
     const outcome = await executeApproved(r.toolName, r.input);
-    emit({ kind: KINDS.APPROVAL_GRANTED, userId: user.id, summary: r.summary, payload: { tool: r.toolName, ok: outcome.ok } });
+    await emit({ kind: KINDS.APPROVAL_GRANTED, userId: user.id, summary: r.summary, payload: { tool: r.toolName, ok: outcome.ok } });
     lines.push(outcome.ok ? `✓ ${r.summary}` : `✗ ${r.summary}: ${outcome.error}`);
   }
   return lines.join('\n');
