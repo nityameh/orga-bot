@@ -51,16 +51,19 @@ function createAuthHttp({ authService, findUser, secureCookies }) {
   }
 
   /**
-   * Second CSRF layer: state-changing requests must be JSON. Browsers cannot send
-   * a cross-site `application/json` request without a CORS preflight, which our
-   * CORS policy only allows for the dashboard origin.
+   * Second CSRF layer: state-changing requests must declare JSON. Browsers cannot
+   * send a cross-site request with `Content-Type: application/json` without a CORS
+   * preflight, which our CORS policy only allows for the dashboard origin.
+   * Checks the header, not the parsed body: bodiless DELETEs are legitimate, and
+   * `req.is()` returns null when there is no body.
    * @param {express.Request} req
    * @param {express.Response} res
    * @param {express.NextFunction} next
    */
   function requireJsonForMutations(req, res, next) {
     if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next();
-    if (!req.is('application/json')) {
+    const contentType = (req.get('content-type') || '').toLowerCase();
+    if (!contentType.startsWith('application/json')) {
       return res.status(415).json({ error: 'Content-Type must be application/json' });
     }
     next();
