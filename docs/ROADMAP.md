@@ -41,12 +41,16 @@ phase until the previous exit criterion passes. Tick items in the PR that comple
 **Exit:** the same conversation works on WhatsApp and Telegram, and each message appears in `Interaction` with a traceId.
 
 ## Phase 2: Agent Core
-- [ ] `LLMProvider` strategy (Claude + Groq), model ids in config ([ADR-004](adr/ADR-004-agent-loop-and-llm-providers.md))
-- [ ] Tool registry; existing handlers become tools with Zod schemas and permission tiers
-- [ ] Agent loop with step, time and token budgets; approval gate for external-effect tools
-- [ ] Prompts moved to versioned files in `prompts/`; prompt caching for the static parts
-- [ ] Eval harness + 100-case dataset incl. Hinglish and prompt-injection cases; CI gate ([ADR-013](adr/ADR-013-evals-as-ci-gate.md))
-- [ ] OpenTelemetry GenAI traces for every LLM and tool call ([ADR-012](adr/ADR-012-observability.md))
+- [x] `LLMProvider` strategy (Claude + Groq), model ids in config ([ADR-004](adr/ADR-004-agent-loop-and-llm-providers.md))
+- [x] Tool registry with Zod schemas and permission tiers; 9 tools (handlers kept as fallback path)
+- [x] Agent loop with step, time and per-user daily token budgets; fail-closed gate for external-effect tools
+- [x] Prompts in versioned files in `prompts/`; prompt caching for the static parts
+- [x] Short-term conversation memory (last 10 turns, 24h; pruned after 7 days)
+- [x] Eval harness + CI gate; 25 cases across 8 suites incl. Hinglish and prompt injection
+- [ ] Grow the dataset to 100 cases from real (anonymised) usage
+- [ ] Record the first baseline (needs a valid `ANTHROPIC_API_KEY` or `GROQ_API_KEY`) ([ADR-013](adr/ADR-013-evals-as-ci-gate.md))
+- [x] Per-turn telemetry in the Interaction log (tokens, cache hits, cost, latency, tools, model, prompt version) under the message traceId
+- [ ] OpenTelemetry export (ADR-012 still Proposed) ([ADR-012](adr/ADR-012-observability.md))
 
 **Exit:** eval pass rate ≥ 90%, p95 reply latency < 6s, cost per turn visible in traces.
 

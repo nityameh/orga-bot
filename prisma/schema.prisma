@@ -22,6 +22,7 @@ model User {
   identities     ChannelIdentity[]
   interactions   Interaction[]
   linkCodes      LinkCode[]
+  conversation   ConversationMessage[]
 }
 
 model Note {
@@ -159,4 +160,18 @@ model Interaction {
   @@index([userId, createdAt])
   @@index([userId, kind, createdAt])
   @@index([userId, person, createdAt])
+}
+
+// Short-term conversation memory for the agent (ADR-004): the last few turns
+// as plain text so follow-ups like "make it 5pm instead" work. Pruned after
+// 7 days by the cleanup job; deleted with the user.
+model ConversationMessage {
+  id        String   @id @default(cuid())
+  userId    String
+  role      String                           // "user" | "assistant"
+  content   String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
 }

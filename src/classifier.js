@@ -212,4 +212,4 @@ function keywordFallback(text) {
   return { ...base, type: 'NOTE', title: text.substring(0, 60) };
 }
 
-module.exports = { classify };
+module.exports = { classify, keywordFallback };

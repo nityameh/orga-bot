@@ -28,8 +28,14 @@ const EnvSchema = z
     TELEGRAM_BOT_TOKEN: optionalString,
     TELEGRAM_WEBHOOK_SECRET: optionalString,
 
-    // LLM
+    // LLM / agent (ADR-004)
     GROQ_API_KEY: optionalString,
+    ANTHROPIC_API_KEY: optionalString,
+    AGENT_PROVIDER: z.enum(['auto', 'anthropic', 'groq', 'off']).default('auto'),
+    AGENT_MODEL: optionalString,           // default per provider (see src/agent/index.js)
+    AGENT_EFFORT: z.enum(['low', 'medium', 'high']).default('low'),
+    AGENT_MAX_STEPS: z.coerce.number().int().min(1).max(12).default(6),
+    AGENT_DAILY_TOKEN_BUDGET: z.coerce.number().int().min(1000).default(300_000),
 
     // Dashboard + auth (ADR-006)
     DASHBOARD_URL: z.string().url().default('http://localhost:3001'),

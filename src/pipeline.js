@@ -9,7 +9,8 @@ const express = require('express');
 const { registry, reply } = require('./channels');
 const { resolveUser } = require('./users/identity');
 const { classify } = require('./classifier');
-const { route } = require('./router');
+const { routeCommand, routeIntent } = require('./router');
+const { handleWithAgent, isAvailableFor } = require('./agent');
 const { isRateLimited } = require('./ratelimiter');
 const { runWithContext, setContext } = require('./context');
 const { emit, KINDS } = require('./interactions');
@@ -66,11 +67,25 @@ async function processInbound(message) {
     return;
   }
 
+  // 1. Exact commands and pending confirmations: deterministic, no LLM.
+  if (await routeCommand(user, message)) return;
+
+  // 2. Free text → agent (tool use). 3. Fallback: legacy classifier + intent switch.
+  if (await isAvailableFor(user.id)) {
+    try {
+      await reply(message, await handleWithAgent(user, message));
+      return;
+    } catch (err) {
+      error('agent.failed', { err: err.message, toolCallsMade: err.toolCallsMade ?? 0 });
+      // Falling back after a tool already ran could repeat its side effect.
+      if (err.toolCallsMade > 0) throw err;
+    }
+  }
+
   const start = Date.now();
   const intent = await classify(message.text);
   log('intent.classified', { type: intent.type, ms: Date.now() - start });
-
-  await route(user, intent, message);
+  await routeIntent(user, intent, message);
 }
 
 /**

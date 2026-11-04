@@ -19,9 +19,11 @@
     "db:gen": "prisma generate",
     "docs": "node scripts/gen-lld.js",
     "verify": "npm run lint && npm run typecheck && npm test",
-    "hooks:setup": "git config core.hooksPath .githooks && chmod +x .githooks/* && echo 'Git hooks activated'"
+    "hooks:setup": "git config core.hooksPath .githooks && chmod +x .githooks/* && echo 'Git hooks activated'",
+    "evals": "node evals/run-agent-evals.js"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^1.4.0",
     "@prisma/client": "^5.22.0",
     "axios": "^1.21.0",
     "cookie-parser": "^1.4.7",

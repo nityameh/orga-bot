@@ -22,6 +22,7 @@ const KINDS = Object.freeze({
   QUERY_ANSWERED: 'query.answered',
   DIGEST_SENT: 'digest.sent',
   AUTH_LOGIN: 'auth.login',
+  AGENT_TURN: 'agent.turn',
 });
 
 /** @type {Set<string>} */

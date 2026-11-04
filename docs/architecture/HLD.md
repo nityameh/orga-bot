@@ -132,7 +132,7 @@ Sync job (incremental history id) → for each new email from a known person:
 | Area | Today | Target |
 |---|---|---|
 | Channels | ✅ Adapter registry: WhatsApp + Telegram (Phase 1) | Adapter registry: WhatsApp + Telegram |
-| Brain | One-shot classifier (Groq Llama 3.3) | Tool-use agent loop (Claude + Groq) |
+| Brain | ✅ Tool-use agent loop (Claude Opus 5.5 / Groq), classifier kept as fallback (Phase 2) | Tool-use agent loop (Claude + Groq) |
 | Dashboard auth | ✅ Magic link + sessions (Phase 0) | Magic link + sessions |
 | Jobs | node-cron polling in web process | pg-boss in worker process |
 | Retrieval | Keyword | Hybrid pgvector + full text |
