@@ -88,7 +88,8 @@ describe('processing and the Interaction log', () => {
 
     const rows = await waitFor(async () => {
       const r = await prisma.interaction.findMany({ where: { userId, kind: { in: ['message.received', 'note.created', 'message.sent'] } }, orderBy: { createdAt: 'asc' } });
-      return r.length >= 3 ? r : null;
+      // Events are written asynchronously: wait for the specific row, not a count.
+      return r.some((x) => x.kind === 'note.created') ? r : null;
     });
     expect(rows).toBeTruthy();
     const lastTrace = rows.at(-1).traceId;
