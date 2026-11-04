@@ -23,6 +23,7 @@ const KINDS = Object.freeze({
   DIGEST_SENT: 'digest.sent',
   AUTH_LOGIN: 'auth.login',
   AGENT_TURN: 'agent.turn',
+  NUDGE_SENT: 'nudge.sent',
   APPROVAL_REQUESTED: 'approval.requested',
   APPROVAL_GRANTED: 'approval.granted',
   APPROVAL_REJECTED: 'approval.rejected',

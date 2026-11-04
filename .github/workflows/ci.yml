@@ -74,6 +74,24 @@ jobs:
       - run: npm run typecheck
       - run: npm run build
 
+  embeddings:
+    name: Embedding model — real open-source model smoke test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Cache downloaded model
+        uses: actions/cache@v4
+        with:
+          path: .cache/models
+          key: models-multilingual-e5-small-q8
+      - run: node scripts/check-embedder.js
+
   security:
     name: Security — dependency audit, secret scan
     runs-on: ubuntu-latest

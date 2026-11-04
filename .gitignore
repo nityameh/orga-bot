@@ -21,3 +21,6 @@ resume.tex
 
 # Eval run reports (summaries are tracked in evals/baseline.json and docs/METRICS.md)
 evals/reports/
+
+# Downloaded open-source ML models
+.cache/

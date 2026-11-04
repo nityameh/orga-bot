@@ -67,11 +67,12 @@ phase until the previous exit criterion passes. Tick items in the PR that comple
 **Exit:** "what's my day?" lists real meetings, and a client email creates a proposed commitment that the user approves in chat.
 
 ## Phase 4: Memory + Proactive Agent
-- [ ] pgvector hybrid retrieval with Reciprocal Rank Fusion and cited answers ([ADR-011](adr/ADR-011-memory-and-hybrid-retrieval.md))
-- [ ] Nightly memory consolidation job (extract → merge → expire facts)
-- [ ] pg-boss worker process; reminders become delayed jobs ([ADR-009](adr/ADR-009-job-queue.md))
-- [ ] Proactive rules: morning brief, meeting prep (T-30 min), overdue commitments, "not replied in N days"
-- [ ] Relevance check + daily nudge budget (≤ 3/day by default, user-configurable)
+- [x] Hybrid retrieval (Postgres full-text + free local multilingual embeddings) with Reciprocal Rank Fusion; relevant notes injected into agent context ([ADR-011](adr/ADR-011-memory-and-hybrid-retrieval.md))
+- [ ] Nightly memory consolidation job (extract → merge → expire facts) (future: needs a working LLM key)
+- [x] Double-fire-safe reminders via conditional claim (pg-boss deferred to save a second service, ADR-009) ([ADR-009](adr/ADR-009-job-queue.md))
+- [x] Proactive rules: morning brief, meeting prep (T-30 min, only with related notes), stale tasks
+- [ ] Overdue commitments and "not replied in N days" (need Gmail commitment extraction)
+- [x] Rule-based relevance (free), daily nudge limit, quiet hours, dedupe, `/quiet` opt-out
 
 **Exit:** Orga sends the user a useful message they did not ask for, and the dashboard shows why it was sent.
 

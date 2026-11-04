@@ -45,11 +45,13 @@ function startReminderPoller() {
 }
 
 async function fireReminder(reminder, attempt = 1) {
-  // Mark fired immediately to prevent double-firing on concurrent ticks
-  await prisma.reminder.update({
-    where: { id: reminder.id },
+  // Claim the reminder atomically: only the process whose conditional update
+  // succeeds sends it, so overlapping ticks or two instances can't double-fire.
+  const { count } = await prisma.reminder.updateMany({
+    where: { id: reminder.id, status: 'pending' },
     data:  { status: 'fired' },
   });
+  if (count === 0) return;
 
   const gcalUrl = getGoogleCalUrl(reminder.title, reminder.fireAt);
   const bodyText = `*Reminder*\n\n${reminder.title}\n\nAdd to Google Calendar: ${gcalUrl}`;
