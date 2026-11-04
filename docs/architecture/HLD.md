@@ -132,8 +132,8 @@ Sync job (incremental history id) → for each new email from a known person:
 |---|---|---|
 | Channels | WhatsApp only, hard-wired | Adapter registry: WhatsApp + Telegram |
 | Brain | One-shot classifier (Groq Llama 3.3) | Tool-use agent loop (Claude + Groq) |
-| Dashboard auth | Phone number only ⚠️ | Magic link + sessions |
+| Dashboard auth | ✅ Magic link + sessions (Phase 0) | Magic link + sessions |
 | Jobs | node-cron polling in web process | pg-boss in worker process |
 | Retrieval | Keyword | Hybrid pgvector + full text |
-| Language | JavaScript | TypeScript (incremental) |
-| Schema changes | `db push` | Versioned migrations |
+| Language | JavaScript, TS-checked via JSDoc for new modules | TS-checked everywhere (ADR-007) |
+| Schema changes | ✅ Versioned migrations (Phase 0) | Versioned migrations |

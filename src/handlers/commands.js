@@ -370,6 +370,7 @@ async function handleHelp(user, intent, message) {
     `/client [name] — everything about a client`,
     `/export — backup all your notes`,
     `/privacy — what data is stored`,
+    `/login — open your dashboard`,
     `/help — this message`,
   ].join('\n');
 
@@ -526,7 +527,7 @@ function capitalise(str) {
   return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
-function extractSnippet(body, keyword, maxLen = 60) {
+function extractSnippet(body, keyword) {
   if (!body || !keyword) return null;
   const lower = body.toLowerCase();
   const idx = lower.indexOf(keyword.toLowerCase());

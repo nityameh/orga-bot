@@ -1,4 +1,6 @@
 // src/webhook.js
+// Inbound WhatsApp webhook: Meta verification, HMAC check, dedupe, rate limit, then classify and route.
+// Docs: docs/modules/messaging-pipeline.md
 const crypto  = require('crypto');
 const prisma  = require('./db');
 const { sendMessage }   = require('./sender');
@@ -90,7 +92,7 @@ async function processMessage(message) {
   }
 
   // Get or create user — returns { user, isNew }
-  const { user, isNew } = await upsertUser(message.from, message.name);
+  const { user, isNew } = await upsertUser(message.from);
 
   // GAP 2: welcome new users instead of classifying their first message
   if (isNew) {
@@ -109,7 +111,7 @@ async function processMessage(message) {
 }
 
 // ─── upsertUser ─────────────────────────────────────────────────────────────
-async function upsertUser(phone, name = '') {
+async function upsertUser(phone) {
   // Check if user exists first so we can detect new users
   const existing = await prisma.user.findUnique({ where: { phone } });
 

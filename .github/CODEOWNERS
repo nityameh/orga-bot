@@ -1,0 +1,6 @@
+# Default reviewers for every change.
+*                @nityameh
+# Security-sensitive areas always need owner review.
+/src/auth/       @nityameh
+/prisma/         @nityameh
+/.github/        @nityameh

@@ -1,0 +1,4 @@
+# Normalize line endings: LF in the repo, so shell hooks and CI (Linux) behave the same as Windows.
+* text=auto eol=lf
+*.png binary
+*.ico binary

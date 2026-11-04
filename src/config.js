@@ -1,0 +1,77 @@
+// @ts-check
+// src/config.js
+// Validates environment variables once at startup and exposes a typed config.
+// The app refuses to boot with invalid config (fail fast) instead of failing
+// later on the first request that needs a missing value.
+// Docs: docs/modules/platform.md
+
+const { z } = require('zod');
+
+const optionalString = z
+  .string()
+  .optional()
+  .transform((v) => (v && v.trim() !== '' ? v.trim() : undefined));
+
+const EnvSchema = z
+  .object({
+    NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
+    PORT: z.coerce.number().int().positive().default(3000),
+    DATABASE_URL: z.string().url(),
+
+    // WhatsApp (Meta Cloud API) — optional in development (sender logs to console)
+    WHATSAPP_TOKEN: optionalString,
+    PHONE_NUMBER_ID: optionalString,
+    WEBHOOK_VERIFY_TOKEN: optionalString,
+    APP_SECRET: optionalString,
+
+    // LLM
+    GROQ_API_KEY: optionalString,
+
+    // Dashboard + auth (ADR-006)
+    DASHBOARD_URL: z.string().url().default('http://localhost:3001'),
+    LOGIN_TOKEN_TTL_MINUTES: z.coerce.number().int().min(1).max(60).default(10),
+    SESSION_TTL_DAYS: z.coerce.number().int().min(1).max(90).default(30),
+  })
+  .superRefine((env, ctx) => {
+    if (env.NODE_ENV !== 'production') return;
+    // In production, inbound webhooks must be signature-verified and replies must send.
+    for (const key of /** @type {const} */ (['WHATSAPP_TOKEN', 'PHONE_NUMBER_ID', 'WEBHOOK_VERIFY_TOKEN', 'APP_SECRET'])) {
+      if (!env[key]) {
+        ctx.addIssue({ code: 'custom', path: [key], message: 'required in production' });
+      }
+    }
+    if (env.DASHBOARD_URL.startsWith('http://')) {
+      ctx.addIssue({ code: 'custom', path: ['DASHBOARD_URL'], message: 'must be https in production' });
+    }
+  });
+
+/** @typedef {z.infer<typeof EnvSchema>} Config */
+
+/**
+ * Parse and validate an environment object.
+ * Exported separately from `config` so tests can validate arbitrary inputs.
+ * @param {Record<string, string | undefined>} env
+ * @returns {Config}
+ */
+function parseConfig(env) {
+  const result = EnvSchema.safeParse(env);
+  if (!result.success) {
+    const problems = result.error.issues.map((i) => `  - ${i.path.join('.')}: ${i.message}`).join('\n');
+    throw new Error(`Invalid environment configuration:\n${problems}`);
+  }
+  return result.data;
+}
+
+/** @type {Config | undefined} */
+let cached;
+
+/**
+ * Validated config for the current process (parsed lazily, then cached).
+ * @returns {Config}
+ */
+function getConfig() {
+  if (!cached) cached = parseConfig(process.env);
+  return cached;
+}
+
+module.exports = { parseConfig, getConfig };

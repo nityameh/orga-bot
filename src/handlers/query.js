@@ -14,7 +14,12 @@ const prisma = require('../db');
 const { sendMessage } = require('../sender');
 const { log, warn } = require('../logger');
 
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+// Created lazily so the app can start without GROQ_API_KEY.
+let groq;
+function getGroq() {
+  if (!groq) groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+  return groq;
+}
 
 // ─── System prompt for answer generation ──────────────────────────────────
 
@@ -56,7 +61,7 @@ async function handleQuery(user, intent, message) {
   // Step 3: Generate answer via second LLM call
   let answer;
   try {
-    const response = await groq.chat.completions.create({
+    const response = await getGroq().chat.completions.create({
       model: 'llama-3.3-70b-versatile',
       max_tokens: 300,
       temperature: 0.3,

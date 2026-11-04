@@ -46,7 +46,7 @@ async function handleTask(user, intent, message) {
       });
 
       const pending = updatedItems.filter(i => !i.done).length;
-      const addedLines = newItems.map((item, i) => `${item.id}. ${item.text}`).join('\n');
+      const addedLines = newItems.map((item) => `${item.id}. ${item.text}`).join('\n');
 
       const reply = [
         `*Added to "${existing.title}"*`,

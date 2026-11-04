@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { api } from '@/lib/api';
 
 const navItems = [
   { href: '/dashboard', label: 'Home', icon: '□' },
@@ -14,9 +15,12 @@ const navItems = [
 export default function Sidebar() {
   const pathname = usePathname();
 
-  const handleLogout = () => {
-    localStorage.removeItem('orga_phone');
-    window.location.href = '/login';
+  const handleLogout = async () => {
+    try {
+      await api.logout();
+    } finally {
+      window.location.href = '/login';
+    }
   };
 
   return (
