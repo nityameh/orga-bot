@@ -73,7 +73,8 @@ async function processInbound(message) {
   // 2. Free text → agent (tool use). 3. Fallback: legacy classifier + intent switch.
   if (await isAvailableFor(user.id)) {
     try {
-      await reply(message, await handleWithAgent(user, message));
+      const { text, buttons } = await handleWithAgent(user, message);
+      await reply(message, text, buttons);
       return;
     } catch (err) {
       error('agent.failed', { err: err.message, toolCallsMade: err.toolCallsMade ?? 0 });

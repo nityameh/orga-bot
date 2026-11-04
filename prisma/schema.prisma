@@ -23,6 +23,7 @@ model User {
   interactions   Interaction[]
   linkCodes      LinkCode[]
   conversation   ConversationMessage[]
+  integrations   Integration[]
 }
 
 model Note {
@@ -174,4 +175,23 @@ model ConversationMessage {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt])
+}
+
+// Connected third-party account (ADR-010). Tokens are AES-256-GCM encrypted by
+// src/integrations/tokenVault.js and never leave the server or appear in logs.
+model Integration {
+  id              String    @id @default(cuid())
+  userId          String
+  provider        String                       // "google"
+  accountEmail    String?
+  accessTokenEnc  String
+  refreshTokenEnc String?
+  scopes          String[]
+  expiresAt       DateTime
+  status          String    @default("active") // "active" | "expired"
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, provider])
 }

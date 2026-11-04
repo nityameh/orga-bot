@@ -9,6 +9,7 @@ const cookieParser = require('cookie-parser');
 const { getConfig } = require('./config');
 const { createWebhookRouter } = require('./pipeline');
 const { authHttp } = require('./auth');
+const { createIntegrationsRouter, createOAuthCallbackRouter } = require('./integrations/http');
 const prisma = require('./db');
 const { generateIcsContent } = require('./ical');
 const { error } = require('./logger');
@@ -42,7 +43,9 @@ function createApp() {
 
   // Dashboard API: /auth is public (exchange/logout), everything else needs a session.
   app.use('/api/v1/auth', authHttp.requireJsonForMutations, authHttp.router);
+  app.use('/api/v1/integrations', authHttp.requireJsonForMutations, authHttp.requireSession, createIntegrationsRouter());
   app.use('/api/v1', authHttp.requireJsonForMutations, authHttp.requireSession, require('./api'));
+  app.use('/oauth', createOAuthCallbackRouter()); // Google redirects here; authenticated by encrypted state
 
   // iCal download — unauthenticated by design (opened from chat apps); the cuid is unguessable.
   app.get('/ical/:id.ics', async (req, res) => {

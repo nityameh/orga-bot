@@ -30,6 +30,8 @@ re-running on another path could save a note twice.
 | `src/agent/tools/notes.js` | `save_note`, `search_notes` |
 | `src/agent/tools/tasks.js` | `create_task_list`, `list_tasks`, `complete_task_item` |
 | `src/agent/tools/reminders.js` | `create_reminder`, `list_reminders`, `cancel_reminder`, `get_today` |
+| `src/agent/tools/google.js` | `list_calendar_events`, `create_calendar_event` (needs approval), `search_email` (registered only when Google is configured) |
+| `src/agent/approvals.js` | Human-in-the-loop approvals for `external` tools (see [integrations.md](integrations.md#approvals-human-in-the-loop)) |
 | `src/agent/prompt.js` | Loads `prompts/agent.system.v1.md`; builds the per-request context (time, name, channel) |
 | `src/agent/time.js` | IST helpers |
 | `src/agent/index.js` | Composition root: provider selection, conversation memory, daily budget, `agent.turn` events |
@@ -51,7 +53,7 @@ repeat up to AGENT_MAX_STEPS (6) and 45 s:
   run all tool calls concurrently → ONE user message containing every tool_result
      invalid args / unknown tool / ToolInputError → is_error result (model can retry)
      tool crashed    → is_error "Internal error" (turn continues; crash logged)
-     external tool   → refused until the approval flow exists (fails closed)
+     external tool   → parked for user approval; reply carries Approve / Cancel buttons
 ```
 
 ## Design decisions

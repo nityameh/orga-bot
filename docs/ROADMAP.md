@@ -55,11 +55,14 @@ phase until the previous exit criterion passes. Tick items in the PR that comple
 **Exit:** eval pass rate ≥ 90%, p95 reply latency < 6s, cost per turn visible in traces.
 
 ## Phase 3: Google Integrations
-- [ ] Google OAuth (Testing mode, ≤ 100 users) on the dashboard; token vault with AES-256-GCM ([ADR-010](adr/ADR-010-security-baseline-third-party-data.md))
-- [ ] Expired-token detection (`invalid_grant`) → reconnect link in chat
-- [ ] Calendar tools: list, create (approval), find free slots
-- [ ] Gmail incremental sync → `Person` resolution → `Commitment` extraction → approve via buttons
-- [ ] Untrusted-content spotlighting; injection eval cases pass 100%
+- [x] Google OAuth (PKCE, encrypted state) from dashboard Settings; token vault with AES-256-GCM ([ADR-010](adr/ADR-010-security-baseline-third-party-data.md))
+- [x] Expired-token detection (`invalid_grant`) → integration marked expired, user notified to reconnect
+- [x] Calendar tools: list, create with **human approval** (Approve/Cancel buttons, approve-once)
+- [x] Gmail read-only search tool, results flagged as untrusted
+- [ ] Find free slots
+- [ ] Gmail incremental sync → `Person` resolution → `Commitment` extraction → approve via buttons (moved to Phase 4: it is a proactive job)
+- [x] Untrusted-content spotlighting; email prompt-injection eval case
+- [ ] Injection eval cases pass 100% (needs a valid LLM key to measure)
 
 **Exit:** "what's my day?" lists real meetings, and a client email creates a proposed commitment that the user approves in chat.
 

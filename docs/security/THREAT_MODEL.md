@@ -4,7 +4,7 @@
 > protects against it. Method: STRIDE per trust boundary. Review this whenever a
 > new data source, channel, tool with external effects, or public endpoint is added.
 
-**Last reviewed:** 2026-11-05 (Phase 2)
+**Last reviewed:** 2026-11-05 (Phase 3)
 
 ## 1. Assets
 | Asset | Why it matters |
@@ -35,7 +35,9 @@
 | T7 | (2) | Elevation | Access another user's rows by id (IDOR) | Every API query filters by `req.user.id` from the session | ✅ (verify per new route) |
 | T8 | (2) | DoS | Brute-force token exchange | Per-IP rate limit (10/min); 256-bit tokens make guessing infeasible | ✅ |
 | T9 | (1) | DoS | Message flood → LLM cost spike | Per-user rate limit (20/min); per-user daily token budget → free fallback path; step and time limits per turn | ✅ Phase 2 |
-| T10 | (3) | Info disclosure | DB dump exposes usable tokens | Only SHA-256 hashes of login/session tokens stored; OAuth tokens AES-256-GCM (Phase 3) | ✅ / Phase 3 |
+| T10 | (3) | Info disclosure | DB dump exposes usable tokens | Login/session tokens hashed; Google tokens AES-256-GCM with key outside the DB; never returned by APIs | ✅ |
+| T20 | (2) | Spoofing | OAuth CSRF: attacker links their Google account to a victim (or vice versa) | Encrypted, expiring `state` bound to the session user; PKCE | ✅ Phase 3 |
+| T21 | (4) | Elevation | Agent sends invites/emails on its own (e.g. after injection) | `external` tools only run after the user taps Approve; re-validated; approve-once | ✅ Phase 3 |
 | T11 | (4) | Tampering | Prompt injection via note (later email) content makes agent act | Tool results wrapped as `<tool_data>` + prompt rule; external tools fail closed; strict tool schemas reject extra args; `safety` eval suite | ✅ notes (Phase 2), email in Phase 3 |
 | T19 | (4) | Elevation | Model passes another user's ids to a tool | Tools scope every query by the session user, never by model input; integration tests | ✅ Phase 2 |
 | T12 | all | Repudiation | Can't tell what the agent did or who logged in | Interaction log records logins, messages and every state change with traceId | ✅ Phase 1 |

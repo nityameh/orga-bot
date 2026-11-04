@@ -112,7 +112,7 @@ Sync job (incremental history id) → for each new email from a known person:
 | Commitment | Promises extracted from chat or email, with due date and status |
 | Memory | Consolidated facts about people and preferences |
 | Embedding | pgvector chunks over notes, emails, memories |
-| Integration | Encrypted OAuth tokens per provider |
+| Integration | Encrypted OAuth tokens per provider (✅ Phase 3) |
 | Interaction | Append-only event log: the backbone for analytics, audit and proactive work (✅ Phase 1) |
 
 ## 7. Cross-Cutting Concerns

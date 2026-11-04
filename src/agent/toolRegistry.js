@@ -20,6 +20,8 @@ const { z } = require('zod');
  * @typedef {Object} ToolContext
  * @property {{ id: string }} user
  * @property {Date} now
+ * @property {(req: { toolName: string, input: unknown, summary: string }) => void} [requestApproval]
+ *   Provided by the composition root; absent → external tools fail closed
  */
 
 /**
@@ -30,6 +32,7 @@ const { z } = require('zod');
  * @property {S} inputSchema
  * @property {Permission} permission
  * @property {(input: z.infer<S>, ctx: ToolContext) => Promise<unknown>} execute
+ * @property {(input: z.infer<S>) => string} [describe]  External tools: one-line summary shown on the approval prompt
  */
 
 /**
@@ -63,31 +66,58 @@ function createToolRegistry(tools) {
    * @param {ToolContext} ctx
    * @returns {Promise<{ ok: true, result: unknown } | { ok: false, error: string, needsApproval?: boolean }>}
    */
-  async function execute(name, rawInput, ctx) {
+  /** @param {string} name @param {unknown} rawInput */
+  function validate(name, rawInput) {
     const tool = byName.get(name);
-    if (!tool) return { ok: false, error: `Unknown tool "${name}".` };
-
+    if (!tool) return /** @type {const} */ ({ error: `Unknown tool "${name}".` });
     const parsed = tool.inputSchema.safeParse(rawInput);
     if (!parsed.success) {
       const issues = parsed.error.issues.map((/** @type {any} */ i) => `${i.path.join('.') || '(input)'}: ${i.message}`).join('; ');
-      return { ok: false, error: `Invalid arguments — ${issues}` };
+      return /** @type {const} */ ({ error: `Invalid arguments — ${issues}` });
     }
+    return { tool, input: parsed.data };
+  }
 
-    if (tool.permission === 'external') {
-      // Approval flow arrives with the first external tool (Phase 3). Until then
-      // the gate fails closed: external effects never run without a human.
-      return { ok: false, error: 'This action needs the user\'s approval, which is not available yet.', needsApproval: true };
-    }
-
+  /** @param {Tool<any>} tool @param {unknown} input @param {ToolContext} ctx */
+  async function run(tool, input, ctx) {
     try {
-      return { ok: true, result: await tool.execute(parsed.data, ctx) };
+      return /** @type {const} */ ({ ok: true, result: await tool.execute(input, ctx) });
     } catch (err) {
-      if (err instanceof ToolInputError) return { ok: false, error: err.message };
-      throw err; // unexpected failures are bugs: let the agent log and surface them
+      if (err instanceof ToolInputError) return /** @type {const} */ ({ ok: false, error: err.message });
+      throw err; // unexpected failures are bugs: let the caller log and surface them
     }
   }
 
-  return { definitions, execute, has: (/** @type {string} */ name) => byName.has(name), get: (/** @type {string} */ name) => byName.get(name) };
+  /** @param {string} name @param {unknown} rawInput @param {ToolContext} ctx */
+  async function execute(name, rawInput, ctx) {
+    const v = validate(name, rawInput);
+    if ('error' in v) return { ok: false, error: /** @type {string} */ (v.error) };
+
+    if (v.tool.permission === 'external') {
+      // External effects never run inside the agent loop. They are parked for
+      // the user's explicit approval; without an approval channel, fail closed.
+      if (!ctx.requestApproval) return { ok: false, error: "This action needs the user's approval, which isn't available here.", needsApproval: true };
+      const summary = v.tool.describe ? v.tool.describe(v.input) : name;
+      ctx.requestApproval({ toolName: name, input: v.input, summary });
+      return { ok: true, result: { status: 'awaiting_user_approval', action: summary, instruction: 'Not done yet. Tell the user what will happen and that they need to tap Approve.' } };
+    }
+
+    return run(v.tool, v.input, ctx);
+  }
+
+  /**
+   * Run an external tool after the user approved it. Re-validates the stored
+   * input (defence in depth) and bypasses the approval gate.
+   * @param {string} name @param {unknown} rawInput @param {ToolContext} ctx
+   * @returns {Promise<{ ok: true, result: unknown } | { ok: false, error: string }>}
+   */
+  async function executeApproved(name, rawInput, ctx) {
+    const v = validate(name, rawInput);
+    if ('error' in v) return { ok: false, error: /** @type {string} */ (v.error) };
+    return run(v.tool, v.input, ctx);
+  }
+
+  return { definitions, execute, executeApproved, has: (/** @type {string} */ name) => byName.has(name), get: (/** @type {string} */ name) => byName.get(name) };
 }
 
 /** @typedef {ReturnType<typeof createToolRegistry>} ToolRegistry */

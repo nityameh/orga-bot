@@ -5,9 +5,8 @@
 
 import { describe, it, expect } from 'vitest';
 process.env.DATABASE_URL ||= 'postgresql://u:p@localhost:5432/db';
-const { grade, matches } = require('../../evals/run-agent-evals');
+const { grade, matches, allTools } = require('../../evals/run-agent-evals');
 const cases = require('../../evals/agent/cases.json');
-const { tools } = require('../../src/agent');
 
 describe('matchers', () => {
   it('compares strings case-insensitively and supports structured matchers', () => {
@@ -48,7 +47,7 @@ describe('grade', () => {
 });
 
 describe('cases.json', () => {
-  const toolNames = new Set(tools.definitions.map((d) => d.name));
+  const toolNames = new Set(allTools.map((t) => t.name));
 
   it('has unique ids and only references real tools', () => {
     const ids = cases.cases.map((c) => c.id);

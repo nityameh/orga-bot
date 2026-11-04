@@ -20,6 +20,7 @@ const { handleDelete, handleCancel, handleConfirmAction, handleUndo } = require(
 const { handleQuery } = require('./handlers/query');
 const { handleLogin, handleLink, handleDeleteMyDataRequest, handleDeleteMyDataConfirm } = require('./handlers/account');
 const { reply } = require('./channels');
+const { handleApprovalDecision } = require('./agent');
 const { log } = require('./logger');
 
 const TASK_COMPLETION_PATTERNS = [
@@ -77,6 +78,12 @@ async function routeCommand(user, message) {
       message.text = `done ${num}`;
       if (await handleTaskDone(user, message)) return true;
     }
+  }
+
+  // ─── APPROVE / REJECT a parked external action (agent approvals) ──────
+  if (text === 'approve' || text === 'reject') {
+    const answer = await handleApprovalDecision(user, text === 'approve' ? 'APPROVE' : 'REJECT');
+    if (answer) { await reply(message, answer); return true; }
   }
 
   // ─── DONE / SNOOZE replies to a fired reminder ────────────────────────

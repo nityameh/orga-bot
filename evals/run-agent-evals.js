@@ -25,10 +25,12 @@ const { createGroqProvider } = require('../src/llm/groqProvider');
 const { createToolRegistry, ToolInputError } = require('../src/agent/toolRegistry');
 const { runAgentTurn } = require('../src/agent/agent');
 const { loadPrompt, buildDynamicContext, PROMPT_VERSION } = require('../src/agent/prompt');
+const { createGoogleTools } = require('../src/agent/tools/google');
 const allTools = [
   ...Object.values(require('../src/agent/tools/notes')),
   ...Object.values(require('../src/agent/tools/tasks')),
   ...Object.values(require('../src/agent/tools/reminders')),
+  ...createGoogleTools(/** @type {any} */ ({})), // execute() is replaced by fakes below
 ];
 
 const ALLOWED_DROP = 0.02;
@@ -46,6 +48,9 @@ const DEFAULT_RESULTS = {
   list_reminders: () => ({ reminders: [] }),
   cancel_reminder: () => ({ cancelled: 'reminder' }),
   get_today: () => ({ now: 'Thu, 5 Nov 2026, 10:00 am', remindersToday: [], openTaskItems: [], openTaskCount: 0 }),
+  list_calendar_events: () => ({ events: [] }),
+  create_calendar_event: (a) => ({ created: a.title }),
+  search_email: () => ({ untrusted_third_party_content: true, emails: [] }),
 };
 
 function fakeRegistry(fixtures, calls) {
@@ -134,7 +139,8 @@ async function main() {
     try {
       const turn = await runAgentTurn(
         { provider, tools: fakeRegistry(c.fixtures, calls), systemPrompt, maxSteps: 6 },
-        { ctx: { user: { id: 'eval' }, now }, history: [], text: c.input, dynamicSystem: buildDynamicContext({ now, channel: 'whatsapp' }) },
+        // External tools park an approval request; record it as the agent's chosen action.
+        { ctx: { user: { id: 'eval' }, now, requestApproval: (r) => calls.push({ name: r.toolName, args: r.input, approval: true }) }, history: [], text: c.input, dynamicSystem: buildDynamicContext({ now, channel: 'whatsapp' }) },
       );
       reply = turn.text;
       costMicros += turn.costMicros;
@@ -190,4 +196,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { grade, matches };
+module.exports = { grade, matches, allTools };
