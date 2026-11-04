@@ -28,6 +28,12 @@ const EnvSchema = z
     TELEGRAM_BOT_TOKEN: optionalString,
     TELEGRAM_WEBHOOK_SECRET: optionalString,
 
+    // Google (Phase 3, ADR-010) — all three plus TOKEN_ENC_KEY enable the integration
+    GOOGLE_CLIENT_ID: optionalString,
+    GOOGLE_CLIENT_SECRET: optionalString,
+    GOOGLE_REDIRECT_URI: optionalString,   // https://<api-domain>/oauth/google/callback
+    TOKEN_ENC_KEY: optionalString,         // openssl rand -base64 32
+
     // LLM / agent (ADR-004)
     GROQ_API_KEY: optionalString,
     ANTHROPIC_API_KEY: optionalString,
@@ -49,6 +55,9 @@ const EnvSchema = z
       if (!env[key]) {
         ctx.addIssue({ code: 'custom', path: [key], message: 'required in production' });
       }
+    }
+    if (env.GOOGLE_CLIENT_ID && !env.TOKEN_ENC_KEY) {
+      ctx.addIssue({ code: 'custom', path: ['TOKEN_ENC_KEY'], message: 'required when Google is configured (tokens are stored encrypted)' });
     }
     if (env.TELEGRAM_BOT_TOKEN && !env.TELEGRAM_WEBHOOK_SECRET) {
       ctx.addIssue({ code: 'custom', path: ['TELEGRAM_WEBHOOK_SECRET'], message: 'required in production when TELEGRAM_BOT_TOKEN is set' });

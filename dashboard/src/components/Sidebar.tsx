@@ -10,6 +10,7 @@ const navItems = [
   { href: '/dashboard/tasks', label: 'Tasks', icon: '☑' },
   { href: '/dashboard/reminders', label: 'Reminders', icon: '◔' },
   { href: '/dashboard/clients', label: 'Clients', icon: '◉' },
+  { href: '/dashboard/settings', label: 'Settings', icon: '⚙' },
 ];
 
 export default function Sidebar() {

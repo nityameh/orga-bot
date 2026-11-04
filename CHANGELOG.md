@@ -6,6 +6,15 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Commits follow
 
 ## [Unreleased]
 
+### Phase 3: Google integrations + approvals
+#### Added
+- Google OAuth with PKCE and encrypted, expiring state; dashboard Settings page to connect/disconnect
+- AES-256-GCM token vault for OAuth tokens (versioned ciphertext for key rotation)
+- Google client with proactive refresh, 401 retry, and expiry handling (user notified to reconnect)
+- Agent tools: `list_calendar_events`, `create_calendar_event`, `search_email` (read-only, untrusted-flagged)
+- Human-in-the-loop approvals for external actions: Approve/Cancel buttons on both channels, approve-once, audit events
+- Eval cases: calendar approval, calendar listing, email prompt injection
+
 ### Phase 2: Agent core
 #### Added
 - Tool-use agent loop (ADR-004) with step/time limits, parallel tool calls, error-tolerant tool results, refusal handling

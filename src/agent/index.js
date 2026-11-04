@@ -16,6 +16,9 @@ const { startOfDayIST } = require('./time');
 const { saveNote, searchNotes } = require('./tools/notes');
 const { createTaskList, listTasks, completeTaskItem } = require('./tools/tasks');
 const { createReminder, listReminders, cancelReminder, getToday } = require('./tools/reminders');
+const { createGoogleTools } = require('./tools/google');
+const { googleEnabled, googleApi } = require('../integrations');
+const { savePendingApprovals, resolveApproval, APPROVAL_BUTTONS } = require('./approvals');
 const { emit, KINDS } = require('../interactions');
 const { log, warn } = require('../logger');
 
@@ -27,6 +30,7 @@ const tools = createToolRegistry([
   saveNote, searchNotes,
   createTaskList, listTasks, completeTaskItem,
   createReminder, listReminders, cancelReminder, getToday,
+  ...(googleEnabled && googleApi ? createGoogleTools(googleApi) : []),
 ]);
 
 /**
@@ -96,7 +100,18 @@ async function isAvailableFor(/** @type {string} */ userId) {
 }
 
 /**
- * Handle one free-text message with the agent and return the reply text.
+ * Execute the user's APPROVE / REJECT decision on parked external actions.
+ * @param {{ id: string }} user
+ * @param {'APPROVE' | 'REJECT'} decision
+ * @returns {Promise<string | null>} reply, or null when nothing was pending
+ */
+function handleApprovalDecision(user, decision) {
+  return resolveApproval(user, decision, (name, input) => tools.executeApproved(name, input, { user, now: new Date() }));
+}
+
+/**
+ * Handle one free-text message with the agent.
+ * Returns the reply and, when an external action awaits approval, the buttons.
  * @param {{ id: string }} user
  * @param {import('../channels/types').InboundMessage} message
  */
@@ -104,11 +119,13 @@ async function handleWithAgent(user, message) {
   if (!provider) throw new Error('Agent is not configured');
   const now = new Date();
   const started = Date.now();
+  /** @type {import('./approvals').ApprovalRequest[]} */
+  const approvals = [];
 
   const result = await runAgentTurn(
     { provider, tools, systemPrompt, maxSteps: config.AGENT_MAX_STEPS },
     {
-      ctx: { user, now },
+      ctx: { user, now, requestApproval: (req) => { approvals.push(req); } },
       history: await loadHistory(user.id),
       text: message.text,
       dynamicSystem: buildDynamicContext({ now, name: message.name, channel: message.channel }),
@@ -139,7 +156,8 @@ async function handleWithAgent(user, message) {
   });
   log('agent.turn', { outcome: result.outcome, steps: result.steps, tools: result.toolCalls.length, costMicros: result.costMicros, ms: Date.now() - started });
 
-  return result.text;
+  if (approvals.length) await savePendingApprovals(user.id, approvals);
+  return { text: result.text, buttons: approvals.length ? [...APPROVAL_BUTTONS] : undefined };
 }
 
-module.exports = { handleWithAgent, isAvailableFor, selectProvider, tools };
+module.exports = { handleWithAgent, handleApprovalDecision, isAvailableFor, selectProvider, tools };

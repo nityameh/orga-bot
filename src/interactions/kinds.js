@@ -23,6 +23,12 @@ const KINDS = Object.freeze({
   DIGEST_SENT: 'digest.sent',
   AUTH_LOGIN: 'auth.login',
   AGENT_TURN: 'agent.turn',
+  APPROVAL_REQUESTED: 'approval.requested',
+  APPROVAL_GRANTED: 'approval.granted',
+  APPROVAL_REJECTED: 'approval.rejected',
+  INTEGRATION_CONNECTED: 'integration.connected',
+  INTEGRATION_EXPIRED: 'integration.expired',
+  INTEGRATION_DISCONNECTED: 'integration.disconnected',
 });
 
 /** @type {Set<string>} */

@@ -34,6 +34,11 @@ export const api = {
   logout: () => apiFetch('/auth/logout', { method: 'POST', body: '{}' }),
   me: () => apiFetch('/auth/me'),
 
+  // Integrations
+  getIntegrations: () => apiFetch('/integrations'),
+  startGoogleConnect: () => apiFetch('/integrations/google/start', { method: 'POST', body: '{}' }),
+  disconnectGoogle: () => apiFetch('/integrations/google', { method: 'DELETE' }),
+
   // Notes
   createNote: (data: Record<string, unknown>) =>
     apiFetch('/notes', { method: 'POST', body: JSON.stringify(data) }),

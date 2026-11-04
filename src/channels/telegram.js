@@ -11,6 +11,8 @@ const { log, error } = require('../logger');
 const BUTTON_TEXT = /** @type {Record<string, string>} */ ({
   reminder_done: 'DONE',
   reminder_snooze: 'SNOOZE',
+  approval_yes: 'APPROVE',
+  approval_no: 'REJECT',
 });
 
 /**
