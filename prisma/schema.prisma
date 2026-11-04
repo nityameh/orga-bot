@@ -1,0 +1,77 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String     @id @default(cuid())
+  phone     String     @unique           // WhatsApp number e.g. "919876543210"
+  tier      String     @default("free")  // "free" | "pro" | "team"
+  lang      String     @default("en")    // "en" | "hi"
+  createdAt DateTime   @default(now())
+  notes          Note[]
+  tasks          Task[]
+  reminders      Reminder[]
+  pendingActions PendingAction[]
+}
+
+model Note {
+  id        String    @id @default(cuid())
+  userId    String
+  title     String                        // clean summary from Claude
+  body      String?                       // full original text
+  tags      String[]                      // ["#acme", "#design", "#work"]
+  client     String?                       // extracted client name
+  project    String?                       // extracted project name
+  pinned     Boolean   @default(false)     // user can pin important notes
+  archivedAt DateTime?                     // archived notes hidden from default view
+  createdAt  DateTime  @default(now())
+  deletedAt  DateTime?                     // soft delete — recoverable for 30 days
+  user       User      @relation(fields: [userId], references: [id])
+
+  @@index([userId, createdAt])
+  @@index([userId, tags])
+  @@index([userId, pinned])
+}
+
+model Task {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String                        // task list name
+  items     Json                          // [{ id, text, done, order }]
+  tags      String[]
+  client    String?
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@index([userId, createdAt])
+}
+
+model Reminder {
+  id          String    @id @default(cuid())
+  userId      String
+  title       String
+  fireAt      DateTime                    // when to send the WA message
+  status      String    @default("pending") // "pending" | "fired" | "done" | "snoozed"
+  snoozeUntil DateTime?
+  createdAt   DateTime  @default(now())
+  user        User      @relation(fields: [userId], references: [id])
+
+  @@index([status, fireAt])              // critical — used by cron job every 60s
+}
+
+model PendingAction {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String   // "note_list" | "task_list" | "reminder_list" | "edit_note"
+  items     Json     // [{ pos: 1, id: "cuid", summary: "title" }, ...]
+  expiresAt DateTime // now + 10 minutes
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@index([userId, expiresAt])
+}

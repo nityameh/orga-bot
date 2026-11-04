@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"c:/Users/Nitya Mehta/Desktop/Orga/scripts/gen-lld.js\" 2>/dev/null || true",
+            "statusMessage": "Updating LLD.md..."
+          }
+        ]
+      }
+    ]
+  }
+}
