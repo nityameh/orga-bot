@@ -49,15 +49,18 @@ const EnvSchema = z
     SESSION_TTL_DAYS: z.coerce.number().int().min(1).max(90).default(30),
   })
   .superRefine((env, ctx) => {
+    // Every environment: a half-configured Google integration must fail loudly,
+    // not silently disable itself.
+    if (env.GOOGLE_CLIENT_ID && !env.TOKEN_ENC_KEY) {
+      ctx.addIssue({ code: 'custom', path: ['TOKEN_ENC_KEY'], message: 'required when Google is configured (tokens are stored encrypted)' });
+    }
+
     if (env.NODE_ENV !== 'production') return;
     // In production, inbound webhooks must be signature-verified and replies must send.
     for (const key of /** @type {const} */ (['WHATSAPP_TOKEN', 'PHONE_NUMBER_ID', 'WEBHOOK_VERIFY_TOKEN', 'APP_SECRET'])) {
       if (!env[key]) {
         ctx.addIssue({ code: 'custom', path: [key], message: 'required in production' });
       }
-    }
-    if (env.GOOGLE_CLIENT_ID && !env.TOKEN_ENC_KEY) {
-      ctx.addIssue({ code: 'custom', path: ['TOKEN_ENC_KEY'], message: 'required when Google is configured (tokens are stored encrypted)' });
     }
     if (env.TELEGRAM_BOT_TOKEN && !env.TELEGRAM_WEBHOOK_SECRET) {
       ctx.addIssue({ code: 'custom', path: ['TELEGRAM_WEBHOOK_SECRET'], message: 'required in production when TELEGRAM_BOT_TOKEN is set' });
