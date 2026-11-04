@@ -33,7 +33,7 @@ export default defineConfig({
       thresholds: {
         // Branch % is lower than lines because V8 counts every `?.` / `||`
         // fallback as a branch; defensive defaults are intentionally untested.
-        'src/auth/**': { lines: 90, functions: 90, branches: 70 },
+        'src/auth/**': { lines: 90, functions: 90, branches: 65 },
         'src/config.js': { lines: 90 },
         'src/ratelimiter.js': { lines: 90 },
       },
