@@ -1,0 +1,12 @@
+#!/bin/sh
+# .githooks/pre-commit
+# Auto-regenerates docs/LLD.md before every commit.
+# Activated by: npm run hooks:setup
+
+echo "→ Updating docs/LLD.md..."
+node scripts/gen-lld.js
+
+# Stage the updated LLD so it's included in the commit
+git add docs/LLD.md
+
+echo "✓ LLD updated and staged"

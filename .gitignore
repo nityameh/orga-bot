@@ -1,0 +1,22 @@
+node_modules/
+.env
+.env.local
+
+# Prisma
+prisma/migrations/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Dashboard
+dashboard/node_modules/
+dashboard/.next/
+dashboard/.env.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Personal files
+resume.tex
