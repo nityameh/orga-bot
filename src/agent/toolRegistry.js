@@ -117,7 +117,7 @@ function createToolRegistry(tools) {
     return run(v.tool, v.input, ctx);
   }
 
-  return { definitions, execute, executeApproved, has: (/** @type {string} */ name) => byName.has(name), get: (/** @type {string} */ name) => byName.get(name) };
+  return { definitions, validate, execute, executeApproved, has: (/** @type {string} */ name) => byName.has(name), get: (/** @type {string} */ name) => byName.get(name) };
 }
 
 /** @typedef {ReturnType<typeof createToolRegistry>} ToolRegistry */
