@@ -11,5 +11,6 @@ router.use('/tasks', require('./tasks'));
 router.use('/reminders', require('./reminders'));
 router.use('/clients', require('./clients'));
 router.use('/query', require('./query'));
+router.use('/analytics', require('./analytics'));
 
 module.exports = router;

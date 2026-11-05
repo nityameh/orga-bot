@@ -34,6 +34,11 @@ export const api = {
   logout: () => apiFetch('/auth/logout', { method: 'POST', body: '{}' }),
   me: () => apiFetch('/auth/me'),
 
+  // Analytics (Phase 5)
+  getAnalyticsOverview: (days: number) => apiFetch(`/analytics/overview?days=${days}`),
+  getAnalyticsPeople: () => apiFetch('/analytics/people'),
+  getTimeline: (params: Record<string, string>) => apiFetch(`/analytics/timeline?${new URLSearchParams(params)}`),
+
   // Integrations
   getIntegrations: () => apiFetch('/integrations'),
   startGoogleConnect: () => apiFetch('/integrations/google/start', { method: 'POST', body: '{}' }),

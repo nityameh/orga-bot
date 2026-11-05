@@ -77,10 +77,11 @@ phase until the previous exit criterion passes. Tick items in the PR that comple
 **Exit:** Orga sends the user a useful message they did not ask for, and the dashboard shows why it was sent.
 
 ## Phase 5: Interaction Analytics Dashboard (the differentiator)
-- [ ] Timeline of all interactions, filterable by person, channel, kind
-- [ ] Person view: history, open commitments, memories, last contact
-- [ ] Analytics: commitments kept vs missed, response gaps, activity heatmap, top people
-- [ ] Agent transparency: every action with its trace, cost and approval
+- [x] Timeline of all interactions, filterable by kind (incl. prefixes) and person, keyset-paginated
+- [x] People view: interactions, last contact, open tasks, "gone quiet" flag (memories/commitments: later)
+- [x] Analytics: reminder follow-through (done vs missed), activity over time, IST weekday × hour heatmap
+- [ ] Commitments kept vs missed (needs Gmail commitment extraction)
+- [x] Agent transparency: every AI action with tools, model, latency, cost and trace id; approvals; proactive messages with their rule
 - [ ] Weekly AI insights: an LLM summary over aggregated analytics (aggregates only, never raw rows)
 - [ ] "Ask your data": natural language → SQL over read-only, user-scoped views
 
