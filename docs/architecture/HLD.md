@@ -44,7 +44,7 @@ proactively, and shows every interaction in an analytics dashboard.
 |---|---|---|
 | **orga-api** | Node.js 20, Express | Webhooks, REST API for the dashboard, auth, agent turns for inbound messages |
 | **orga-worker** | Node.js 20, pg-boss | Reminders, proactive rules, Google sync, memory consolidation, evals schedule |
-| **dashboard** | Next.js (App Router) | Organise and analyse interactions; manage integrations and memories |
+| **dashboard** | Next.js (App Router) | Organise and analyse interactions (Insights, Activity ✅ Phase 5); manage integrations |
 | **postgres** | PostgreSQL 16 + pgvector | All state: users, content, Interaction log, jobs (pg-boss), embeddings |
 
 All four are deployed on Railway. API and worker share one codebase with different entry points.

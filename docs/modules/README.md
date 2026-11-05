@@ -12,6 +12,7 @@ Each starts with a plain-language summary, then goes into detail.
 | Integrations (Google OAuth, token vault, Calendar/Gmail, approvals) | [integrations.md](integrations.md) | `src/integrations/`, `src/agent/approvals.js` |
 | Memory (semantic search, local embeddings, RRF) | [memory.md](memory.md) | `src/memory/` |
 | Proactive (rules engine, guards, schedules) | [proactive.md](proactive.md) | `src/proactive/` |
+| Analytics (insights dashboard, timeline, people) | [analytics.md](analytics.md) | `src/analytics/`, `src/api/analytics.js` |
 | Interactions (event bus, Interaction log, trace context) | [interactions.md](interactions.md) | `src/interactions/`, `src/context.js` |
 | Users (identity, channel linking) | [users.md](users.md) | `src/users/` |
 | Handlers (notes, tasks, reminders, queries, commands, account) | [handlers.md](handlers.md) | `src/handlers/` |
