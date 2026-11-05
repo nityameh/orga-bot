@@ -43,7 +43,7 @@ re-running on another path could save a note twice.
 | `prompts/agent.system.v1.md` | The system prompt (versioned; front matter documents purpose and changelog) |
 | `evals/agent/cases.json`, `evals/run-agent-evals.js` | Eval dataset and runner |
 
-## How the loop works
+## How the loop works (LangGraph state graph, ADR-015)
 ```
 messages = history (last 10 turns, 24h) + new user message
 repeat up to AGENT_MAX_STEPS (6) and 45 s:
@@ -54,7 +54,8 @@ repeat up to AGENT_MAX_STEPS (6) and 45 s:
   run all tool calls concurrently → ONE user message containing every tool_result
      invalid args / unknown tool / ToolInputError → is_error result (model can retry)
      tool crashed    → is_error "Internal error" (turn continues; crash logged)
-     external tool   → parked for user approval; reply carries Approve / Cancel buttons
+     external tool   → interrupt() BEFORE any tool in the step runs; state checkpointed in Postgres;
+                       Approve/Cancel → Command({ resume }) → same turn continues and replies
 ```
 
 ## Design decisions

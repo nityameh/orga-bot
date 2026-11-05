@@ -8,8 +8,10 @@
 **One-line pitch:** "Orga is a personal AI agent people use over WhatsApp and
 Telegram. It keeps notes, tasks and reminders, connects to Google Calendar and
 Gmail, messages you proactively, and logs every interaction so a dashboard can
-show what it did and why. I built the agent loop, tools, evals and security
-myself, without an agent framework, so every guardrail is visible."
+show what it did and why. The agent runs on LangGraph with a Postgres
+checkpointer for durable human approvals; retrieval uses pgvector; background
+work runs on a durable Postgres job queue (pg-boss). I kept my own LLM provider
+layer for exact cost tracking, caching and failover."
 
 ---
 
@@ -32,6 +34,37 @@ access on every route." *(Connect this to your cross-tenant fix at work.)*
 - Dashboard auth: chat-delivered magic link, hashed single-use tokens, HttpOnly cookies ([ADR-006](adr/ADR-006-dashboard-authentication.md))
 - Privacy: OAuth tokens AES-256-GCM encrypted; message bodies redacted from logs; "delete my data" is a real transactional delete; conversation memory pruned after 7 days
 - Threat model: [docs/security/THREAT_MODEL.md](security/THREAT_MODEL.md) (T7, T19, T20)
+
+## 1b. "Why LangGraph? Why not LangChain agents, or no framework?"
+
+**Say:** "I started with a hand-written loop to understand the mechanics, then
+moved orchestration to LangGraph when I needed durable human-in-the-loop. When
+the agent wants to send a calendar invite, the graph calls `interrupt()` before
+any tool runs. The state is checkpointed in Postgres, and when the user taps
+Approve, `Command({ resume })` continues the same turn, so the agent performs
+the action and replies about the result. The approval survives a restart. I
+didn't use LangChain's chat-model wrappers: my provider layer does exact
+per-call cost accounting, prompt caching and a fallback chain with a circuit
+breaker, and the analytics depend on those details. The migration kept the same
+function signatures, so my 26 existing agent tests verified it unchanged."
+
+**Evidence:** [src/agent/agent.js](../src/agent/agent.js), [ADR-015](adr/ADR-015-langgraph-orchestration.md), tests [test/unit/agent.graph.test.js](../test/unit/agent.graph.test.js) (pause before any side effect, approve-once, reject, no double-counted usage).
+
+**Gotcha worth mentioning:** LangGraph re-runs a node from the top on resume, so
+side effects must come after `interrupt()`. There's a test for exactly that.
+
+## 1c. "How does retrieval work? Do you use a vector database?"
+
+**Say:** "Hybrid retrieval. Postgres full-text search for keywords, plus
+pgvector for meaning: a `vector(384)` column with an HNSW index and the cosine
+distance operator, embeddings from an open-source multilingual model running
+locally (no API cost, works for Hinglish). I fuse the two ranked lists with
+Reciprocal Rank Fusion. I chose pgvector over Pinecone or Qdrant because it's
+free, it's the same database, so user scoping and transactions come for free,
+and it's plenty at this scale. Per query I raise `hnsw.ef_search` so filtering
+by user doesn't starve the approximate search."
+
+**Evidence:** [src/memory/service.js](../src/memory/service.js), [ADR-016](adr/ADR-016-pgvector.md), [test/integration/memory.proactive.test.js](../test/integration/memory.proactive.test.js) (HNSW index present, user scoping), CI job that checks the real embedding model.
 
 ## 2. "What happens if the LLM (Groq/Claude) is down or slow?"
 
@@ -87,8 +120,13 @@ I unit-tested the grader itself, because a buggy grader inflates scores."
 
 **Evidence:** [evals/run-agent-evals.js](../evals/run-agent-evals.js), [evals/agent/cases.json](../evals/agent/cases.json), [.github/workflows/evals.yml](../.github/workflows/evals.yml), [test/unit/evals.grader.test.js](../test/unit/evals.grader.test.js), [ADR-013](adr/ADR-013-evals-as-ci-gate.md)
 
-**Next step to mention:** "Grow the set from real anonymised messages, and add
-groundedness checks for answers (every claim must cite a returned note)."
+**Growing it from real usage:** "Users opt in with `/improve`. Messages are
+anonymised (emails, phones, URLs, IDs masked; known names become Person1,
+Person2), and drafts go to a review queue. A person writes the correct
+expectation before a case joins the suite, so current mistakes never become
+'expected'." Evidence: [ADR-017](adr/ADR-017-eval-set-from-real-messages.md), [src/evals/](../src/evals/).
+
+**Next step to mention:** groundedness checks for answers (every claim must cite a returned note).
 
 **Honest status:** see `docs/METRICS.md`. If the pass rate is "—", say "the
 harness and CI gate are built; I'm establishing the baseline."
@@ -129,6 +167,7 @@ prompt, marked as data and not instructions."
 |---|---|---|---|
 | **Security audit of my own code** | Dashboard auth trusted a phone number; update routes had IDOR | Magic-link sessions; `{id, userId}`-scoped mutations; cross-user regression tests | ADR-006, `api.authorization.test.js` |
 | **Duplicate webhook deliveries** | WhatsApp/Telegram retry webhooks → double notes | 200 immediately, dedupe by `channel:messageId`; reminders claimed with a conditional update so two instances can't double-send | `src/pipeline.js`, `src/scheduler.js` |
+| **Reliable reminders** | A failed send retried forever (attempt counter reset) and retries were lost on restart | Durable pg-boss queue: exponential backoff, dead-letter, `exclusive` policy for one job per reminder. The integration test caught that `singletonKey` alone doesn't dedupe in pg-boss v10+ | `src/jobs/`, ADR-009 |
 | **Relative dates in Hinglish** | "kal shaam 5 baje", past times, ambiguity | Model resolves against the given IST time, server validates, confirmation shows the absolute time, eval cases pin behaviour | `reminders.js`, `time` and `hinglish` evals |
 | **Prompt injection** | Notes and emails can contain "ignore your instructions" | Tool results wrapped as data, external actions need a human tap, strict schemas, injection eval cases | ADR-010, `safety` evals |
 | **A CI-caught bug** | My CSRF guard used `req.is()`, which returns null for bodiless DELETEs | Check the `Content-Type` header instead; regression test | commit `fix(auth)…` |
@@ -143,7 +182,9 @@ prompt, marked as data and not instructions."
 | Zod (+ `z.toJSONSchema` for tool schemas) | Pydantic models (`model_json_schema()`) |
 | `Promise.all` (parallel tool calls) | `asyncio.gather` |
 | Prisma + versioned migrations | SQLAlchemy 2.0 / asyncpg + Alembic |
-| node-cron | APScheduler (or Celery beat) |
+| node-cron / pg-boss (durable queue) | APScheduler / Celery + Redis, or Procrastinate (Postgres-based) |
+| LangGraph (JS) | LangGraph (Python): same concepts, `interrupt()`, `PostgresSaver` |
+| pgvector via raw SQL | pgvector-python + SQLAlchemy |
 | AsyncLocalStorage (traceId) | `contextvars` |
 | Transformers.js (local embeddings) | sentence-transformers |
 | `@anthropic-ai/sdk` | `anthropic` Python SDK |
@@ -161,11 +202,11 @@ and an audit trail of every AI action with its tools, model, latency and cost."
 ## 10. "What would you improve next?" (real roadmap, see [ROADMAP.md](ROADMAP.md))
 - Voice notes → speech-to-text (Whisper via Groq's free tier); very common with Indian users
 - Gmail commitment extraction → proactive "you promised X to Y"
-- pgvector once a user passes ~20k items; shared circuit-breaker state for multiple instances
+- Shared circuit-breaker and rate-limit state (Postgres/Redis) for multiple instances; a separate worker process when job load grows
 - MCP server so other AI clients can use Orga's tools (ADR-014)
 
 ## 11. Traps to avoid
-- **Don't overclaim.** No LangChain or agent framework: "I built the loop directly for control and transparency."
+- **Be precise about frameworks.** "LangGraph for orchestration and durable approvals; my own provider layer instead of LangChain model wrappers, for cost and caching control." Don't say you use "LangChain agents".
 - **Never "the AI decides"** without saying where validation sits: Zod schemas, server-side scoping, time validation, approval gates, evals.
 - **Numbers:** only from `npm run metrics` / `npm run evals` / `docs/METRICS.md`. Otherwise say "roughly" and explain how you'd measure.
 - **Scale:** it's a personal project for friends and colleagues; talk about what changes at 1k or 100k users (pgvector, shared rate limits, a job queue) rather than claiming you've run it at that scale.
