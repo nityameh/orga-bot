@@ -1,6 +1,7 @@
 // src/scheduler.js
-// Time-driven jobs: fire due reminders (every minute), weekly digest (Sunday
-// 6pm IST), nightly cleanup. Proactive messages go through notifyUser(), which
+// Time-driven work: fire due reminders (every minute), weekly digest (Sunday
+// 6pm IST), nightly cleanup. Normally scheduled by the pg-boss job queue
+// (src/jobs, ADR-009); startScheduler() is the node-cron fallback. Proactive messages go through notifyUser(), which
 // picks the user's channel and falls back to approved WhatsApp templates
 // outside the 24-hour window.
 // Stateless — all state lives in Postgres; safe to restart.
@@ -14,76 +15,74 @@ const { log, warn, error } = require('./logger');
 const { getGoogleCalUrl } = require('./ical');
 const { cleanupExpired } = require('./pending');
 
-// ─── Job 1: Reminder poller ────────────────────────────────────────────────
+// ─── Job 1: Reminders ──────────────────────────────────────────────────────
+// pollDueReminders claims due reminders atomically, then hands each to
+// `dispatch`. With the job queue, dispatch enqueues a `reminder.send` job whose
+// failures pg-boss retries with backoff (persisted, survives restarts). Without
+// it (tests/dev), dispatch delivers directly, once.
 
-function startReminderPoller() {
-  cron.schedule('* * * * *', async () => {
-    try {
-      const due = await prisma.reminder.findMany({
-        where: {
-          status: 'pending',
-          fireAt: { lte: new Date() },
-        },
-        include: { user: true },
-        take: 50,
-      });
-
-      if (due.length > 0) {
-        log('reminder.poller.due', { count: due.length });
-      }
-
-      for (const reminder of due) {
-        await fireReminder(reminder);
-      }
-
-    } catch (err) {
-      error('reminder.poller.error', { err: err.message });
-    }
+/**
+ * @param {(reminder: { id: string }) => Promise<unknown>} dispatch
+ * @returns {Promise<number>} reminders claimed
+ */
+async function pollDueReminders(dispatch) {
+  const due = await prisma.reminder.findMany({
+    where: { status: 'pending', fireAt: { lte: new Date() } },
+    select: { id: true },
+    take: 50,
   });
-
-  log('reminder.poller.started');
+  let claimed = 0;
+  for (const reminder of due) {
+    // Claim atomically: only the process whose conditional update succeeds
+    // dispatches it, so overlapping ticks or two instances can't double-fire.
+    const { count } = await prisma.reminder.updateMany({
+      where: { id: reminder.id, status: 'pending' },
+      data:  { status: 'fired' },
+    });
+    if (count === 0) continue;
+    claimed++;
+    await dispatch(reminder);
+  }
+  if (claimed) log('reminder.poller.claimed', { count: claimed });
+  return claimed;
 }
 
-async function fireReminder(reminder, attempt = 1) {
-  // Claim the reminder atomically: only the process whose conditional update
-  // succeeds sends it, so overlapping ticks or two instances can't double-fire.
-  const { count } = await prisma.reminder.updateMany({
-    where: { id: reminder.id, status: 'pending' },
-    data:  { status: 'fired' },
-  });
-  if (count === 0) return;
+/**
+ * Send one claimed reminder. Throws when delivery fails so the job queue
+ * retries it; returns quietly if it was cancelled/completed meanwhile.
+ * @param {string} reminderId
+ */
+async function deliverReminder(reminderId) {
+  const reminder = await prisma.reminder.findUnique({ where: { id: reminderId }, include: { user: true } });
+  if (!reminder || reminder.status !== 'fired') return;
 
   const gcalUrl = getGoogleCalUrl(reminder.title, reminder.fireAt);
-  const bodyText = `*Reminder*\n\n${reminder.title}\n\nAdd to Google Calendar: ${gcalUrl}`;
-  const buttons = [
-    { id: 'reminder_done', title: 'Done' },
-    { id: 'reminder_snooze', title: 'Snooze 1hr' },
-  ];
   const sent = await notifyUser(reminder.user, {
-    text: bodyText,
-    buttons,
+    text: `*Reminder*\n\n${reminder.title}\n\nAdd to Google Calendar: ${gcalUrl}`,
+    buttons: [
+      { id: 'reminder_done', title: 'Done' },
+      { id: 'reminder_snooze', title: 'Snooze 1hr' },
+    ],
     template: { name: 'reminder_fire', params: [reminder.title] },
   });
+  if (!sent) throw new Error(`Reminder ${reminderId} could not be delivered`);
 
-  if (sent) {
-    log('reminder.fired', { reminderId: reminder.id, userId: reminder.userId });
-    emit({ kind: KINDS.REMINDER_FIRED, userId: reminder.userId, summary: reminder.title, payload: { reminderId: reminder.id } });
-    return;
-  }
+  log('reminder.fired', { reminderId, userId: reminder.userId });
+  emit({ kind: KINDS.REMINDER_FIRED, userId: reminder.userId, summary: reminder.title, payload: { reminderId } });
+}
 
-  // Retry with backoff (max 3 attempts)
-  if (attempt < 3) {
-    const delayMs = attempt * 30 * 1000;
-    warn('reminder.send_failed', { attempt, retryInSec: delayMs / 1000, id: reminder.id });
-    setTimeout(async () => {
-      await prisma.reminder.update({
-        where: { id: reminder.id },
-        data:  { status: 'pending', fireAt: new Date(Date.now() + 5000) },
-      });
-    }, delayMs);
-  } else {
-    error('reminder.failed_all_attempts', { id: reminder.id });
+/** Direct delivery (no job queue): one attempt, failure logged. */
+async function deliverNow(/** @type {{ id: string }} */ reminder) {
+  try {
+    await deliverReminder(reminder.id);
+  } catch (err) {
+    error('reminder.send_failed', { reminderId: reminder.id, err: err.message, retry: 'none (job queue disabled)' });
   }
+}
+
+function startReminderPoller() {
+  cron.schedule('* * * * *', () => pollDueReminders(deliverNow).catch((err) => error('reminder.poller.error', { err: err.message })));
+  log('reminder.poller.started', { mode: 'node-cron' });
 }
 
 // ─── Job 2: Weekly digest ──────────────────────────────────────────────────
@@ -226,23 +225,22 @@ async function handleReminderReply(user, message) {
 
 // ─── Start all jobs ────────────────────────────────────────────────────────
 
-function startDailyCleanup() {
-  cron.schedule('0 3 * * *', async () => {
-    try {
-      await cleanupExpired();
-      // Conversation memory is short-term by design (privacy): keep 7 days.
-      const { count } = await prisma.conversationMessage.deleteMany({
-        where: { createdAt: { lt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } },
-      });
-      if (count) log('conversation.pruned', { count });
-    } catch (err) {
-      error('cleanup.error', { err: err.message });
-    }
-  }, { timezone: 'Asia/Kolkata' });
+/** Nightly housekeeping: expired pending actions, old conversation memory. */
+async function runDailyCleanup() {
+  await cleanupExpired();
+  // Conversation memory is short-term by design (privacy): keep 7 days.
+  const { count } = await prisma.conversationMessage.deleteMany({
+    where: { createdAt: { lt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } },
+  });
+  if (count) log('conversation.pruned', { count });
+}
 
+function startDailyCleanup() {
+  cron.schedule('0 3 * * *', () => runDailyCleanup().catch((err) => error('cleanup.error', { err: err.message })), { timezone: 'Asia/Kolkata' });
   log('cleanup.daily.scheduled');
 }
 
+/** Fallback scheduling with node-cron (used when the pg-boss job queue is disabled). */
 function startScheduler() {
   startReminderPoller();
   startWeeklyDigest();
@@ -250,4 +248,4 @@ function startScheduler() {
   log('scheduler.started');
 }
 
-module.exports = { startScheduler, handleReminderReply, sendWeeklyDigests };
+module.exports = { startScheduler, handleReminderReply, sendWeeklyDigests, pollDueReminders, deliverReminder, runDailyCleanup };

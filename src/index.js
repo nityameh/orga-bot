@@ -15,8 +15,7 @@ try {
 }
 
 const { createApp } = require('./app');
-const { startScheduler } = require('./scheduler');
-const { startProactiveJobs } = require('./proactive');
+const { startBackgroundJobs, stopBackgroundJobs } = require('./jobs');
 const prisma = require('./db');
 const { log, error } = require('./logger');
 
@@ -24,8 +23,7 @@ const app = createApp();
 
 const server = app.listen(config.PORT, () => {
   log('server.started', { port: config.PORT, env: config.NODE_ENV });
-  startScheduler();
-  startProactiveJobs();
+  startBackgroundJobs().catch((err) => error('jobs.fatal', { err: err.message }));
 });
 
 server.on('error', (err) => {
@@ -41,6 +39,7 @@ server.on('error', (err) => {
 function shutdown(signal) {
   log('server.shutdown', { signal });
   server.close(async () => {
+    await stopBackgroundJobs().catch(() => {});
     await prisma.$disconnect();
     process.exit(0);
   });

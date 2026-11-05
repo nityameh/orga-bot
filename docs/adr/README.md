@@ -23,7 +23,7 @@ can see **what** was decided, **why**, and **what was rejected**.
 | [006](ADR-006-dashboard-authentication.md) | Chat-delivered magic-link auth for the dashboard (P0) | Accepted |
 | [007](ADR-007-typescript-migration.md) | TypeScript-checked JavaScript (JSDoc) + Zod at boundaries | Accepted |
 | [008](ADR-008-versioned-migrations.md) | Versioned Prisma migrations instead of `db push` | Accepted |
-| [009](ADR-009-job-queue.md) | pg-boss for background jobs; separate worker process | Deferred (cost) |
+| [009](ADR-009-job-queue.md) | pg-boss durable job queue, in-process | Accepted |
 | [010](ADR-010-security-baseline-third-party-data.md) | Security baseline for third-party data and agent actions | Accepted |
 | [011](ADR-011-memory-and-hybrid-retrieval.md) | Hybrid retrieval with free local embeddings (pgvector deferred) | Accepted |
 | [012](ADR-012-observability.md) | Structured logs + OpenTelemetry GenAI traces | Proposed |
