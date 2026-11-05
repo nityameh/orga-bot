@@ -151,14 +151,20 @@ prompt, marked as data and not instructions."
 | ESLint + tsc type-checking | ruff + mypy/pyright |
 | In-process event bus | blinker or a small observer class |
 
-## 9. "What would you improve next?" (real roadmap, see [ROADMAP.md](ROADMAP.md))
-- Interaction-analytics dashboard (Phase 5): timeline, per-person view, commitments kept vs missed, agent cost and latency panel
+## 9. "What makes it different?"
+**Say:** "Agents like Instinct act for you but are a black box. Orga logs every
+event to an append-only log and builds an insights dashboard on it: who
+you've gone quiet on, how reliably you act on reminders, when you're active,
+and an audit trail of every AI action with its tools, model, latency and cost."
+**Evidence:** [docs/modules/analytics.md](modules/analytics.md), [src/analytics/](../src/analytics/)
+
+## 10. "What would you improve next?" (real roadmap, see [ROADMAP.md](ROADMAP.md))
 - Voice notes → speech-to-text (Whisper via Groq's free tier); very common with Indian users
 - Gmail commitment extraction → proactive "you promised X to Y"
 - pgvector once a user passes ~20k items; shared circuit-breaker state for multiple instances
 - MCP server so other AI clients can use Orga's tools (ADR-014)
 
-## 10. Traps to avoid
+## 11. Traps to avoid
 - **Don't overclaim.** No LangChain or agent framework: "I built the loop directly for control and transparency."
 - **Never "the AI decides"** without saying where validation sits: Zod schemas, server-side scoping, time validation, approval gates, evals.
 - **Numbers:** only from `npm run metrics` / `npm run evals` / `docs/METRICS.md`. Otherwise say "roughly" and explain how you'd measure.

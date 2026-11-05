@@ -6,6 +6,12 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Commits follow
 
 ## [Unreleased]
 
+### Phase 5: Interaction analytics dashboard
+#### Added
+- Insights page: activity over time, IST weekday × hour heatmap, reminder follow-through, agent latency/cost/cache rate, tool usage, approvals, proactive messages, people sorted by "gone quiet"
+- Activity page: audit timeline of every AI action with tools, model, latency, cost and trace id; filters and keyset pagination
+- Analytics API (`/api/v1/analytics/overview|people|timeline`) with Zod-validated queries, scoped per user
+
 ### Resilience + interview readiness
 #### Added
 - LLM fallback chain (Claude → Groq) with per-call timeout and circuit breaker

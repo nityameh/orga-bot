@@ -18,6 +18,8 @@ query is limited to that user's own data.
 | `GET /reminders` · `POST /reminders` · `PUT /reminders/:id` · `DELETE /reminders/:id` | Reminders |
 | `GET /clients` · `GET /clients/:name` | Client roll-up across notes/tasks/reminders |
 | `POST /query` | Ask a question over your data (same retrieval as chat) |
+| `GET /analytics/overview` · `/analytics/people` · `/analytics/timeline` | Insights dashboard (see [analytics.md](analytics.md)) |
+| `GET/POST/DELETE /integrations/...` | Google connect/disconnect (see [integrations.md](integrations.md)) |
 
 Auth routes (`/api/v1/auth/*`) are documented in [auth.md](auth.md).
 
