@@ -29,4 +29,5 @@ can see **what** was decided, **why**, and **what was rejected**.
 | [012](ADR-012-observability.md) | Structured logs + OpenTelemetry GenAI traces | Proposed |
 | [013](ADR-013-evals-as-ci-gate.md) | Evals as a required CI gate | Accepted |
 | [014](ADR-014-mcp-server.md) | Expose Orga's tools as an MCP server | Proposed |
+| [015](ADR-015-langgraph-orchestration.md) | LangGraph orchestration with durable interrupts; keep our LLM provider layer | Accepted |
 | [016](ADR-016-pgvector.md) | pgvector (HNSW, cosine) as the vector database | Accepted |

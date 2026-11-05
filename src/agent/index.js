@@ -11,7 +11,10 @@ const { createAnthropicProvider } = require('../llm/anthropicProvider');
 const { createGroqProvider } = require('../llm/groqProvider');
 const { createFallbackProvider } = require('../llm/fallbackProvider');
 const { createToolRegistry } = require('./toolRegistry');
-const { runAgentTurn } = require('./agent');
+const crypto = require('crypto');
+const { MemorySaver } = require('@langchain/langgraph');
+const { PostgresSaver } = require('@langchain/langgraph-checkpoint-postgres');
+const { runAgentTurn, resumeAgentTurn } = require('./agent');
 const { loadPrompt, buildDynamicContext, PROMPT_VERSION } = require('./prompt');
 const { startOfDayIST } = require('./time');
 const { saveNote, searchNotes } = require('./tools/notes');
@@ -72,6 +75,31 @@ const chain = selectProviderChain(config).map((c) => (c.name === 'anthropic'
   : createGroqProvider({ apiKey: c.apiKey, model: c.model })));
 // Always wrapped: even a single provider gets a timeout and a circuit breaker.
 const provider = chain.length ? createFallbackProvider(chain, { timeoutMs: config.AGENT_LLM_TIMEOUT_MS }) : null;
+
+// LangGraph checkpointer (ADR-015): persists paused turns so approvals survive
+// restarts. Tables live in their own Postgres schema, away from Prisma's.
+const checkpointer = config.NODE_ENV === 'test'
+  ? new MemorySaver()
+  : PostgresSaver.fromConnString(config.DATABASE_URL, { schema: 'langgraph' });
+/** @type {Promise<void> | null} */
+let checkpointerReady = null;
+function ensureCheckpointer() {
+  if (!(checkpointer instanceof PostgresSaver)) return Promise.resolve();
+  if (!checkpointerReady) {
+    checkpointerReady = checkpointer.setup();
+    checkpointerReady.catch(() => { checkpointerReady = null; });
+  }
+  return checkpointerReady;
+}
+
+/** Forget a finished turn's checkpoints (keeps the table small; turns are short-lived). */
+async function dropThread(/** @type {string} */ threadId) {
+  try {
+    await checkpointer.deleteThread(threadId);
+  } catch (err) {
+    warn('agent.checkpoint_cleanup_failed', { err: /** @type {Error} */ (err).message });
+  }
+}
 
 let systemPrompt = '';
 if (provider) {
@@ -134,49 +162,20 @@ async function isAvailableFor(/** @type {string} */ userId) {
 }
 
 /**
- * Execute the user's APPROVE / REJECT decision on parked external actions.
- * @param {{ id: string }} user
- * @param {'APPROVE' | 'REJECT'} decision
- * @returns {Promise<string | null>} reply, or null when nothing was pending
+ * Record one agent invocation: conversation memory + agent.turn telemetry.
+ * @param {{ id: string }} user @param {string} userText @param {import('./agent').AgentTurnResult} result @param {number} started
  */
-function handleApprovalDecision(user, decision) {
-  return resolveApproval(user, decision, (name, input) => tools.executeApproved(name, input, { user, now: new Date() }));
-}
-
-/**
- * Handle one free-text message with the agent.
- * Returns the reply and, when an external action awaits approval, the buttons.
- * @param {{ id: string }} user
- * @param {import('../channels/types').InboundMessage} message
- */
-async function handleWithAgent(user, message) {
-  if (!provider) throw new Error('Agent is not configured');
-  const now = new Date();
-  const started = Date.now();
-  /** @type {import('./approvals').ApprovalRequest[]} */
-  const approvals = [];
-
-  const result = await runAgentTurn(
-    { provider, tools, systemPrompt, maxSteps: config.AGENT_MAX_STEPS },
-    {
-      ctx: { user, now, requestApproval: (req) => { approvals.push(req); } },
-      history: await loadHistory(user.id),
-      text: message.text,
-      dynamicSystem: buildDynamicContext({ now, name: message.name, channel: message.channel }) + await relevantNotesContext(user.id, message.text),
-    },
-  );
-
+async function recordTurn(user, userText, result, started) {
   await prisma.conversationMessage.createMany({
     data: [
-      { userId: user.id, role: 'user', content: message.text.slice(0, 4000) },
+      { userId: user.id, role: 'user', content: userText.slice(0, 4000) },
       { userId: user.id, role: 'assistant', content: result.text.slice(0, 4000) },
     ],
   });
-
   emit({
     kind: KINDS.AGENT_TURN,
     userId: user.id,
-    summary: result.toolCalls.map((t) => t.name).join(', ') || 'reply only',
+    summary: result.toolCalls.map((t) => t.name).join(', ') || (result.outcome === 'awaiting_approval' ? 'awaiting approval' : 'reply only'),
     payload: {
       outcome: result.outcome,
       steps: result.steps,
@@ -189,9 +188,62 @@ async function handleWithAgent(user, message) {
     usage: { tokensIn: result.usage.tokensIn + result.usage.cacheRead + result.usage.cacheWrite, tokensOut: result.usage.tokensOut, costMicros: result.costMicros },
   });
   log('agent.turn', { outcome: result.outcome, steps: result.steps, tools: result.toolCalls.length, costMicros: result.costMicros, ms: Date.now() - started });
+}
 
-  if (approvals.length) await savePendingApprovals(user.id, approvals);
-  return { text: result.text, buttons: approvals.length ? [...APPROVAL_BUTTONS] : undefined };
+const agentDeps = () => ({ provider: /** @type {any} */ (provider), tools, systemPrompt, maxSteps: config.AGENT_MAX_STEPS, checkpointer });
+
+/**
+ * The user tapped Approve / Cancel: resume the paused LangGraph turn with the
+ * decision; the agent runs (or skips) the action and writes the reply.
+ * @param {{ id: string }} user
+ * @param {'APPROVE' | 'REJECT'} decision
+ * @returns {Promise<string | null>} reply, or null when nothing was pending
+ */
+function handleApprovalDecision(user, decision) {
+  return resolveApproval(user, decision, async (threadId) => {
+    if (!provider) return decision === 'APPROVE' ? 'The assistant is unavailable right now; nothing was done.' : 'Cancelled — nothing was done.';
+    await ensureCheckpointer();
+    const started = Date.now();
+    const result = await resumeAgentTurn(agentDeps(), { threadId, decision, ctx: { user, now: new Date() } });
+    await recordTurn(user, decision === 'APPROVE' ? '[approved]' : '[declined]', result, started);
+    if (result.pendingApproval) await savePendingApprovals(user.id, result.pendingApproval);
+    else await dropThread(threadId);
+    return result.text;
+  });
+}
+
+/**
+ * Handle one free-text message with the agent.
+ * Returns the reply and, when an external action awaits approval, the buttons.
+ * @param {{ id: string }} user
+ * @param {import('../channels/types').InboundMessage} message
+ */
+async function handleWithAgent(user, message) {
+  if (!provider) throw new Error('Agent is not configured');
+  const now = new Date();
+  const started = Date.now();
+  const threadId = `turn:${crypto.randomUUID()}`;
+  await ensureCheckpointer();
+
+  const result = await runAgentTurn(
+    agentDeps(),
+    {
+      ctx: { user, now },
+      threadId,
+      history: await loadHistory(user.id),
+      text: message.text,
+      dynamicSystem: buildDynamicContext({ now, name: message.name, channel: message.channel }) + await relevantNotesContext(user.id, message.text),
+    },
+  );
+
+  await recordTurn(user, message.text, result, started);
+
+  if (result.pendingApproval) {
+    await savePendingApprovals(user.id, result.pendingApproval);
+    return { text: result.text, buttons: [...APPROVAL_BUTTONS] };
+  }
+  await dropThread(threadId);
+  return { text: result.text, buttons: undefined };
 }
 
 module.exports = { handleWithAgent, handleApprovalDecision, isAvailableFor, selectProvider, selectProviderChain, tools, provider };
