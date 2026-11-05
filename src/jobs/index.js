@@ -16,7 +16,12 @@ const { pollDueReminders, deliverReminder, sendWeeklyDigests, runDailyCleanup, s
 const { engine, rules, startProactiveJobs } = require('../proactive');
 const { log, error } = require('../logger');
 
-const REMINDER_RETRY = { retryLimit: 5, retryDelay: 30, retryBackoff: true, retryDelayMax: 30 * 60, deadLetter: 'reminder.failed' };
+/** @type {import('./queue').QueueOptions} */
+const REMINDER_RETRY = {
+  policy: 'exclusive',       // with singletonKey = reminderId: one send job per reminder
+  retryLimit: 5, retryDelay: 30, retryBackoff: true, retryDelayMax: 30 * 60,
+  deadLetter: 'reminder.failed',
+};
 
 /**
  * Wire every job onto a queue. Exported for tests (takes any JobQueue).

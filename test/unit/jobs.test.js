@@ -24,7 +24,7 @@ describe('registerJobs', () => {
     const q = fakeQueue();
     await registerJobs(q);
     expect(q.defined.get('reminder.send').options).toEqual(REMINDER_RETRY);
-    expect(REMINDER_RETRY).toMatchObject({ retryBackoff: true, deadLetter: 'reminder.failed' });
+    expect(REMINDER_RETRY).toMatchObject({ policy: 'exclusive', retryBackoff: true, deadLetter: 'reminder.failed' });
     expect(REMINDER_RETRY.retryLimit).toBeGreaterThanOrEqual(3);
     expect(q.defined.has('reminder.failed')).toBe(true);
   });

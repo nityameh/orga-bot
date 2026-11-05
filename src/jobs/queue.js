@@ -26,6 +26,8 @@ const { log, error } = require('../logger');
  * @property {boolean} [retryBackoff]   exponential: retryDelay * 2^retryCount (with jitter)
  * @property {number} [retryDelayMax]   seconds
  * @property {string} [deadLetter]      queue that receives jobs after the last failed retry
+ * @property {'standard' | 'exclusive' | 'singleton' | 'short' | 'stately'} [policy]
+ *   `exclusive` + singletonKey = at most one queued-or-active job per key (pg-boss enforces it)
  */
 
 /**
