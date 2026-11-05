@@ -130,4 +130,21 @@ async function handleImprove(user, message) {
   await reply(message, arg === 'on' ? '*Thanks!* Anonymised messages may now be used to test quality. Send /improve off any time.' : '*Done.* Your messages will not be used for quality tests.');
 }
 
-module.exports = { handleImprove, handleQuiet, handleLogin, handleLink, handleDeleteMyDataRequest, handleDeleteMyDataConfirm };
+/**
+ * "/invite [uses] [days]" (admins only): create an invite link for someone to try Orga.
+ * Non-admins get a polite refusal; invites are an admin capability (ADR-018).
+ */
+async function handleInvite(user, message) {
+  if (user.role !== 'admin') {
+    await reply(message, 'Invites are created by the Orga admin. Ask them for a link.');
+    return;
+  }
+  const [, usesArg, daysArg] = message.text.trim().split(/\s+/);
+  const maxUses = Math.min(Math.max(parseInt(usesArg, 10) || 1, 1), 50);
+  const days = Math.min(Math.max(parseInt(daysArg, 10) || 7, 1), 90);
+  const { invites } = require('../invites'); // lazy: avoids a require cycle via channels
+  const invite = await invites.createInvite({ maxUses, days, createdById: user.id, label: 'via chat' });
+  await reply(message, `*Invite created*\n\n${invite.url}\n\nWorks for ${maxUses} ${maxUses === 1 ? 'person' : 'people'}, expires in ${days} days.`);
+}
+
+module.exports = { handleInvite, handleImprove, handleQuiet, handleLogin, handleLink, handleDeleteMyDataRequest, handleDeleteMyDataConfirm };

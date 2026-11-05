@@ -6,6 +6,12 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Commits follow
 
 ## [Unreleased]
 
+### Phase 5.6: Demo-ready access
+#### Added
+- Web chat channel: third ChannelAdapter, browser chat with polling, approval/reminder buttons (ADR-018)
+- Invite-only onboarding: hashed ORGA-XXXX-XXXX codes in the URL fragment, max uses, expiry, revocation, atomic redemption, per-IP rate limit; admin `/invite` command and `npm run invite:create` / `admin:grant`
+- Invite landing page and Chat page in the dashboard; `docs/DEMO.md` runbook
+
 ### Phase 5.5: Platform upgrades (all free/open-source)
 #### Added
 - pgvector vector database: `vector(384)` column, HNSW index, cosine-distance search (ADR-016)

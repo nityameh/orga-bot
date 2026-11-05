@@ -98,6 +98,12 @@ phase until the previous exit criterion passes. Tick items in the PR that comple
 
 **Exit:** retrieval uses an ANN index; an approval survives a restart and the agent finishes the turn after it; a reminder whose send fails is retried after a restart; at least 20 reviewed real-message eval cases.
 
+## Phase 5.6: Demo-ready access
+- [x] Web chat channel (third `ChannelAdapter`; no phone number needed) (ADR-018)
+- [x] Invite-only onboarding: admin `/invite` + `npm run invite:create`, single/multi-use, expiry, revocation
+- [x] Demo runbook (`docs/DEMO.md`)
+- [ ] Deploy and run the demo end to end on a public URL
+
 ## Phase 6: Stretch (pick one or two)
 - [ ] MCP server exposing Orga tools to Claude Desktop / IDEs ([ADR-014](adr/ADR-014-mcp-server.md))
 - [ ] Voice notes → speech-to-text → agent (very common usage in India)

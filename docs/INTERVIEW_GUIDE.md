@@ -192,6 +192,13 @@ prompt, marked as data and not instructions."
 | ESLint + tsc type-checking | ruff + mypy/pyright |
 | In-process event bus | blinker or a small observer class |
 
+## 8b. "Can I try it?" (live demo)
+**Say:** "Sure, here's an invite link." They open it, tap Accept, and chat in the
+browser with no phone number needed. Follow [DEMO.md](DEMO.md). Point out that web chat
+is a third channel adapter: adding it touched no agent, tool or handler code.
+The invite redemption is a compare-and-set update, so a 2-use link can't
+admit 3 people even when they click at the same moment (there's a test).
+
 ## 9. "What makes it different?"
 **Say:** "Agents like Instinct act for you but are a black box. Orga logs every
 event to an append-only log and builds an insights dashboard on it: who
@@ -209,4 +216,4 @@ and an audit trail of every AI action with its tools, model, latency and cost."
 - **Be precise about frameworks.** "LangGraph for orchestration and durable approvals; my own provider layer instead of LangChain model wrappers, for cost and caching control." Don't say you use "LangChain agents".
 - **Never "the AI decides"** without saying where validation sits: Zod schemas, server-side scoping, time validation, approval gates, evals.
 - **Numbers:** only from `npm run metrics` / `npm run evals` / `docs/METRICS.md`. Otherwise say "roughly" and explain how you'd measure.
-- **Scale:** it's a personal project for friends and colleagues; talk about what changes at 1k or 100k users (pgvector, shared rate limits, a job queue) rather than claiming you've run it at that scale.
+- **Scale:** it's a personal project for friends and colleagues; talk about what changes at 1k or 100k users (shared rate-limit and circuit-breaker state, a separate worker process, partitioning the Interaction log, SSE instead of polling) rather than claiming you've run it at that scale.

@@ -95,3 +95,11 @@ export interface TimelineItem {
   createdAt: string;
   details?: Record<string, unknown>;
 }
+
+export interface WebMessage {
+  id: string;
+  direction: 'in' | 'out';
+  text: string;
+  buttons: { id: string; title: string }[] | null;
+  createdAt: string;
+}

@@ -91,6 +91,19 @@ function createAuthService({ repo, dashboardUrl, loginTokenTtlMinutes, sessionTt
   }
 
   /**
+   * Start a session for a user whose identity was proven another way (e.g. an
+   * invite redemption that just created the account).
+   * @param {string} userId
+   * @param {string} [userAgent]
+   */
+  async function createSessionFor(userId, userAgent) {
+    const sessionToken = generateToken();
+    const expiresAt = new Date(now().getTime() + sessionTtlDays * 24 * 60 * 60 * 1000);
+    await repo.createSession({ userId, tokenHash: hashToken(sessionToken), expiresAt, userAgent: userAgent?.slice(0, 256) });
+    return { sessionToken, userId, expiresAt };
+  }
+
+  /**
    * Resolve a session cookie value to a userId, or null if invalid/expired/revoked.
    * @param {unknown} sessionToken
    * @returns {Promise<string | null>}
@@ -117,7 +130,7 @@ function createAuthService({ repo, dashboardUrl, loginTokenTtlMinutes, sessionTt
     await repo.revokeSession(hashToken(sessionToken), now());
   }
 
-  return { issueLoginLink, exchangeLoginToken, resolveSession, revokeSession };
+  return { issueLoginLink, exchangeLoginToken, createSessionFor, resolveSession, revokeSession };
 }
 
 /** @typedef {ReturnType<typeof createAuthService>} AuthService */

@@ -25,7 +25,9 @@
     "embeddings:backfill": "node scripts/backfill-embeddings.js",
     "metrics": "node scripts/report-metrics.js",
     "evals:harvest": "node scripts/harvest-evals.js",
-    "evals:promote": "node scripts/promote-evals.js"
+    "evals:promote": "node scripts/promote-evals.js",
+    "invite:create": "node scripts/create-invite.js",
+    "admin:grant": "node scripts/make-admin.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.4.0",

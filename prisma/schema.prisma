@@ -16,6 +16,7 @@ model User {
   lang      String     @default("en")    // "en" | "hi"
   proactive Boolean    @default(true)    // proactive nudges on/off (/quiet)
   evalOptIn Boolean    @default(false)   // consent to anonymised eval harvesting (/improve), ADR-017
+  role      String     @default("user")  // "user" | "admin" (admins can create invites)
   createdAt DateTime   @default(now())
   notes          Note[]
   tasks          Task[]
@@ -29,6 +30,8 @@ model User {
   conversation   ConversationMessage[]
   integrations   Integration[]
   embeddings     Embedding[]
+  webMessages    WebMessage[]
+  invitesCreated Invite[]   @relation("InviteCreator")
 }
 
 model Note {
@@ -218,4 +221,32 @@ model Embedding {
 
   @@unique([sourceType, sourceId])
   @@index([userId, model])
+}
+
+// Invite-only access (ADR-018), Instinct-style: a link with a code creates an
+// account and a session. Only the SHA-256 of the code is stored.
+model Invite {
+  id          String    @id @default(cuid())
+  codeHash    String    @unique
+  label       String?                        // e.g. "Interview demo – Acme"
+  maxUses     Int       @default(1)
+  uses        Int       @default(0)
+  expiresAt   DateTime
+  revokedAt   DateTime?
+  createdById String?
+  createdAt   DateTime  @default(now())
+  createdBy   User?     @relation("InviteCreator", fields: [createdById], references: [id], onDelete: SetNull)
+}
+
+// Web chat channel (ADR-018): the browser polls this table for Orga's replies.
+model WebMessage {
+  id        String   @id @default(cuid())
+  userId    String
+  direction String                           // "in" (user) | "out" (Orga)
+  text      String
+  buttons   Json?                            // [{ id, title }] for approvals / reminders
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
 }

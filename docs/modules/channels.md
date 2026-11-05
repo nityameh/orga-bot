@@ -34,6 +34,14 @@ with `reply(message, text)` without knowing which app it is talking to.
 | `telegram.js` | Bot API: secret-token header check, message + inline-button parsing, Markdown sending with plain-text fallback |
 | `index.js` | Composition root: builds adapters from config; `reply`, `notifyUser` |
 
+## Web chat (ADR-018)
+A third adapter, `web.js`, for using Orga in the browser (invited users,
+interview demos). It has no webhook: `POST /api/v1/chat/messages` stores the
+message and runs the normal pipeline asynchronously (202 Accepted); `send()`
+writes replies to the `WebMessage` outbox, which the dashboard polls every
+1.5 s. Buttons (Approve/Cancel, Done/Snooze) map to the same commands as on
+WhatsApp/Telegram. Adding it changed no agent, tool or handler code.
+
 ## Channel differences the adapters absorb
 | | WhatsApp | Telegram |
 |---|---|---|

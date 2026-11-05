@@ -16,9 +16,12 @@ const SESSION_COOKIE = 'orga_session';
  * @param {(userId: string) => Promise<unknown | null>} deps.findUser
  * @param {boolean} deps.secureCookies  true in production (HTTPS only)
  * @param {(userId: string) => void} [deps.onLogin]  Hook for audit/analytics (keeps this module decoupled)
+ * @param {(code: unknown) => Promise<{ ok: true, userId: string } | { ok: false, reason: string }>} [deps.redeemInvite]
+ *   Invite redemption (src/invites), injected so auth doesn't depend on invites
  */
-function createAuthHttp({ authService, findUser, secureCookies, onLogin }) {
+function createAuthHttp({ authService, findUser, secureCookies, onLogin, redeemInvite }) {
   const isExchangeLimited = createRateLimiter({ limit: 10, windowMs: 60 * 1000 });
+  const isInviteLimited = createRateLimiter({ limit: 10, windowMs: 60 * 1000 });
 
   /** @type {express.CookieOptions} */
   const cookieOptions = {
@@ -88,6 +91,34 @@ function createAuthHttp({ authService, findUser, secureCookies, onLogin }) {
 
       res.cookie(SESSION_COOKIE, result.sessionToken, { ...cookieOptions, expires: result.expiresAt });
       log('auth.login', { userId: result.userId });
+      onLogin?.(result.userId);
+      res.json({ ok: true });
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  // Invite link → new account + session (ADR-018).
+  router.post('/invite', async (req, res, next) => {
+    try {
+      if (!redeemInvite) return res.status(404).json({ error: 'Invites are not enabled' });
+      const ip = req.ip || 'unknown';
+      if (isInviteLimited(ip)) {
+        warn('auth.invite_rate_limited', { ip });
+        return res.status(429).json({ error: 'Too many attempts. Try again in a minute.' });
+      }
+      const result = await redeemInvite(req.body?.code);
+      if (!result.ok) {
+        const messages = /** @type {Record<string, string>} */ ({
+          invalid: 'This invite link is not valid.',
+          expired: 'This invite has expired. Ask for a new one.',
+          used_up: 'This invite has already been used.',
+        });
+        return res.status(result.reason === 'invalid' ? 404 : 410).json({ error: messages[result.reason] ?? messages.invalid, reason: result.reason });
+      }
+      const session = await authService.createSessionFor(result.userId, req.get('user-agent'));
+      res.cookie(SESSION_COOKIE, session.sessionToken, { ...cookieOptions, expires: session.expiresAt });
+      log('auth.invite_redeemed', { userId: result.userId });
       onLogin?.(result.userId);
       res.json({ ok: true });
     } catch (err) {

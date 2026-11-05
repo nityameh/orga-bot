@@ -16,6 +16,9 @@ export default function LoginPage() {
         <p className="text-xs text-gray-400 mt-8">
           Only someone with access to your chat can sign in to your dashboard.
         </p>
+        <p className="text-xs text-gray-500 mt-3">
+          New to Orga? Open the invite link you were sent. No phone number needed.
+        </p>
       </div>
     </div>
   );

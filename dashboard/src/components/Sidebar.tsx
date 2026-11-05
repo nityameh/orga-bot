@@ -6,6 +6,7 @@ import { api } from '@/lib/api';
 
 const navItems = [
   { href: '/dashboard', label: 'Home', icon: '□' },
+  { href: '/dashboard/chat', label: 'Chat', icon: '✉' },
   { href: '/dashboard/insights', label: 'Insights', icon: '◷' },
   { href: '/dashboard/activity', label: 'Activity', icon: '≡' },
   { href: '/dashboard/notes', label: 'Notes', icon: '▤' },

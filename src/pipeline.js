@@ -97,6 +97,7 @@ function createWebhookRouter() {
   const router = express.Router();
 
   for (const adapter of registry.all()) {
+    if (!adapter.webhookPath) continue; // e.g. web chat: inbound via the authenticated API instead
     if (adapter.handleVerification) {
       router.get(adapter.webhookPath, (req, res) => adapter.handleVerification(req, res));
     }
