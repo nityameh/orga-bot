@@ -39,6 +39,10 @@ const EnvSchema = z
     EMBEDDING_MODEL: z.string().default('Xenova/multilingual-e5-small'),
     MODEL_CACHE_DIR: z.string().default('.cache/models'),
 
+    // Database pools beyond Prisma's (set Prisma's via ?connection_limit= in DATABASE_URL).
+    // Free poolers (e.g. Supabase) allow few connections, so keep these small.
+    DB_POOL_MAX: z.coerce.number().int().min(1).max(50).default(3),
+
     // Background jobs (ADR-009): pg-boss durable queue in Postgres, or node-cron fallback
     JOBS: z.enum(['pgboss', 'cron']).optional(),                  // default: pgboss (cron under NODE_ENV=test)
 
@@ -68,10 +72,15 @@ const EnvSchema = z
     }
 
     if (env.NODE_ENV !== 'production') return;
-    // In production, inbound webhooks must be signature-verified and replies must send.
-    for (const key of /** @type {const} */ (['WHATSAPP_TOKEN', 'PHONE_NUMBER_ID', 'WEBHOOK_VERIFY_TOKEN', 'APP_SECRET'])) {
-      if (!env[key]) {
-        ctx.addIssue({ code: 'custom', path: [key], message: 'required in production' });
+    // WhatsApp is optional (Telegram + web chat work without it), but all-or-nothing:
+    // if any WhatsApp variable is set, all are required so webhooks are verified
+    // and replies can send. With none set, the WhatsApp webhook rejects everything.
+    const whatsappKeys = /** @type {const} */ (['WHATSAPP_TOKEN', 'PHONE_NUMBER_ID', 'WEBHOOK_VERIFY_TOKEN', 'APP_SECRET']);
+    if (whatsappKeys.some((key) => env[key])) {
+      for (const key of whatsappKeys) {
+        if (!env[key]) {
+          ctx.addIssue({ code: 'custom', path: [key], message: 'required in production when WhatsApp is configured' });
+        }
       }
     }
     if (env.TELEGRAM_BOT_TOKEN && !env.TELEGRAM_WEBHOOK_SECRET) {

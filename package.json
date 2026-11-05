@@ -4,7 +4,7 @@
   "description": "WhatsApp-native productivity bot for Indian freelancers",
   "main": "src/index.js",
   "scripts": {
-    "start": "node src/index.js",
+    "start": "node --max-old-space-size=400 src/index.js",
     "dev": "nodemon src/index.js",
     "lint": "eslint .",
     "typecheck": "tsc -p tsconfig.json",
@@ -27,7 +27,8 @@
     "evals:harvest": "node scripts/harvest-evals.js",
     "evals:promote": "node scripts/promote-evals.js",
     "invite:create": "node scripts/create-invite.js",
-    "admin:grant": "node scripts/make-admin.js"
+    "admin:grant": "node scripts/make-admin.js",
+    "start:prod": "prisma migrate deploy && node --max-old-space-size=400 src/index.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.4.0",
@@ -43,7 +44,9 @@
     "express": "^4.22.3",
     "groq-sdk": "^1.1.1",
     "node-cron": "^3.0.3",
+    "pg": "^8.23.1",
     "pg-boss": "^12.38.1",
+    "prisma": "^5.22.0",
     "zod": "^4.6.7"
   },
   "devDependencies": {
@@ -54,12 +57,12 @@
     "@types/express": "^4.17.25",
     "@types/node": "^22.20.5",
     "@types/node-cron": "^3.0.11",
+    "@types/pg": "^8.23.1",
     "@vitest/coverage-v8": "^4.1.2",
     "eslint": "^9.39.5",
     "globals": "^15.15.0",
     "nodemon": "^3.1.9",
     "playwright": "^1.58.2",
-    "prisma": "^5.22.0",
     "typescript": "^5.9.3",
     "vitest": "^4.1.2"
   },

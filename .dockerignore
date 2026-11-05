@@ -1,0 +1,14 @@
+node_modules
+dashboard
+coverage
+.cache
+.env
+.env.*
+!.env.example
+.git
+.github
+docs
+test
+evals
+*.log
+resume.tex

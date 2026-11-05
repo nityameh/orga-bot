@@ -14,6 +14,7 @@ const { createToolRegistry } = require('./toolRegistry');
 const crypto = require('crypto');
 const { MemorySaver } = require('@langchain/langgraph');
 const { PostgresSaver } = require('@langchain/langgraph-checkpoint-postgres');
+const { Pool } = require('pg');
 const { runAgentTurn, resumeAgentTurn } = require('./agent');
 const { loadPrompt, buildDynamicContext, PROMPT_VERSION } = require('./prompt');
 const { startOfDayIST } = require('./time');
@@ -81,7 +82,7 @@ const provider = chain.length ? createFallbackProvider(chain, { timeoutMs: confi
 // restarts. Tables live in their own Postgres schema, away from Prisma's.
 const checkpointer = config.NODE_ENV === 'test'
   ? new MemorySaver()
-  : PostgresSaver.fromConnString(config.DATABASE_URL, { schema: 'langgraph' });
+  : new PostgresSaver(new Pool({ connectionString: config.DATABASE_URL, max: config.DB_POOL_MAX }), undefined, { schema: 'langgraph' });
 /** @type {Promise<void> | null} */
 let checkpointerReady = null;
 function ensureCheckpointer() {

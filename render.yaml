@@ -1,0 +1,37 @@
+# Render Blueprint — free API deployment (ADR-019). Render → New → Blueprint → this repo.
+# Free web services sleep after 15 min without traffic: point a free uptime pinger
+# (cron-job.org, every 10 min) at https://<service>.onrender.com/ to keep it awake.
+# One always-on service uses ~744 of the 750 free instance hours per month.
+services:
+  - type: web
+    name: orga-api
+    runtime: node
+    plan: free
+    region: singapore              # closest Render region to India
+    branch: main
+    buildCommand: npm ci && npx prisma generate
+    startCommand: npm run start:prod   # prisma migrate deploy, then start (heap capped for 512 MB)
+    healthCheckPath: /health/ready
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: "20"
+      - key: EMBEDDINGS
+        value: "off"               # the local model needs more RAM/CPU than the free instance has
+      - key: DB_POOL_MAX
+        value: "3"
+      - key: JOBS
+        value: pgboss
+      # Secrets: set in the Render dashboard (sync: false = not stored in this file)
+      - key: DATABASE_URL          # Supabase session pooler URI + ?connection_limit=5
+        sync: false
+      - key: DASHBOARD_URL         # https://<your-app>.vercel.app
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_WEBHOOK_SECRET
+        sync: false

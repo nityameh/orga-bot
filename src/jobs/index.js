@@ -55,7 +55,7 @@ async function startBackgroundJobs() {
   const mode = config.JOBS ?? (config.NODE_ENV === 'test' ? 'cron' : 'pgboss');
   if (mode === 'pgboss') {
     try {
-      queue = createPgBossQueue({ connectionString: config.DATABASE_URL });
+      queue = createPgBossQueue({ connectionString: config.DATABASE_URL, max: config.DB_POOL_MAX });
       await queue.start();
       await registerJobs(queue);
       log('jobs.registered', { mode });
