@@ -86,17 +86,19 @@ describe('processing and the Interaction log', () => {
     const note = await prisma.note.findFirst({ where: { userId } });
     expect(note).toBeTruthy();
 
-    const rows = await waitFor(async () => {
-      const r = await prisma.interaction.findMany({ where: { userId, kind: { in: ['message.received', 'note.created', 'message.sent'] } }, orderBy: { createdAt: 'asc' } });
-      // Events are written asynchronously: wait for the specific row, not a count.
-      return r.some((x) => x.kind === 'note.created') ? r : null;
+    // Events are written asynchronously and in no guaranteed order: wait until the
+    // note's trace has the COMPLETE trail (received → created → sent), not just one row.
+    const trail = ['message.received', 'note.created', 'message.sent'];
+    const result = await waitFor(async () => {
+      const created = await prisma.interaction.findFirst({ where: { userId, kind: 'note.created' } });
+      if (!created?.traceId) return null;
+      const rows = await prisma.interaction.findMany({ where: { userId, traceId: created.traceId } });
+      return trail.every((k) => rows.some((r) => r.kind === k)) ? { traceId: created.traceId, rows } : null;
     });
-    expect(rows).toBeTruthy();
-    const lastTrace = rows.at(-1).traceId;
-    expect(lastTrace).toMatch(/^[0-9a-f]{16}$/);
-    const sameTrace = rows.filter((r) => r.traceId === lastTrace).map((r) => r.kind);
-    expect(sameTrace).toEqual(expect.arrayContaining(['message.received', 'note.created', 'message.sent']));
-    expect(rows.every((r) => r.channel === 'telegram')).toBe(true);
+    expect(result).toBeTruthy();
+    expect(result.traceId).toMatch(/^[0-9a-f]{16}$/);
+    expect(result.rows.map((r) => r.kind)).toEqual(expect.arrayContaining(trail));
+    expect(result.rows.every((r) => r.channel === 'telegram')).toBe(true);
   });
 
   it('records lastInboundAt on the identity', async () => {
