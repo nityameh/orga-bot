@@ -101,7 +101,7 @@ jobs:
       - name: Build API image
         run: docker build -t orga-api:ci .
       - name: Validate docker-compose.yml
-        run: POSTGRES_PASSWORD=ci API_DOMAIN=example.sslip.io docker compose --env-file .env.example config --quiet
+        run: cp .env.example .env && POSTGRES_PASSWORD=ci API_DOMAIN=example.sslip.io docker compose config --quiet
       - name: Validate render.yaml is parseable YAML
         run: python3 -c "import yaml,sys; yaml.safe_load(open('render.yaml'))"
 
