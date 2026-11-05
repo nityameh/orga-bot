@@ -9,10 +9,13 @@ const { invites } = require('../../src/invites');
 
 let server, baseUrl;
 const createdUserIds = [];
+let visitor = 0;
 
-async function redeem(code) {
+// Each simulated visitor gets its own client IP (the app trusts X-Forwarded-For
+// from its proxy, as on Railway), so the per-IP rate limit doesn't interfere.
+async function redeem(code, ip = `10.0.0.${++visitor}`) {
   const res = await fetch(`${baseUrl}/api/v1/auth/invite`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code }),
+    method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Forwarded-For': ip }, body: JSON.stringify({ code }),
   });
   const body = await res.json();
   const cookie = res.headers.get('set-cookie')?.split(';')[0];
@@ -79,6 +82,13 @@ describe('invites', () => {
     const revoked = await invites.createInvite({ label: 'test:revoked' });
     expect(await invites.revokeInvite(revoked.code)).toBe(true);
     expect((await redeem(revoked.code)).status).toBe(404);
+  });
+
+  it('rate limits redemption attempts per IP (10 per minute)', async () => {
+    const statuses = [];
+    for (let i = 0; i < 11; i++) statuses.push((await redeem('ORGA-2222-2222', '10.9.9.9')).status);
+    expect(statuses.slice(0, 10).every((s) => s === 404)).toBe(true);
+    expect(statuses[10]).toBe(429);
   });
 
   it('a 2-use invite admits exactly 2 people even when 3 redeem at once', async () => {
