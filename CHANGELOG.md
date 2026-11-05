@@ -6,6 +6,15 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Commits follow
 
 ## [Unreleased]
 
+### Phase 5.5: Platform upgrades (all free/open-source)
+#### Added
+- pgvector vector database: `vector(384)` column, HNSW index, cosine-distance search (ADR-016)
+- LangGraph agent orchestration: state graph, Postgres checkpointer, durable approvals via `interrupt()`/resume (ADR-015)
+- pg-boss durable job queue in-process: reminder retries with exponential backoff and dead-letter, cron schedules run once across instances (ADR-009)
+- Eval harvesting from real messages: `/improve` consent, anonymiser, review queue, promote (ADR-017)
+#### Fixed
+- Undeliverable reminders were retried forever (attempt counter reset) and retries were lost on restart
+
 ### Phase 5: Interaction analytics dashboard
 #### Added
 - Insights page: activity over time, IST weekday × hour heatmap, reminder follow-through, agent latency/cost/cache rate, tool usage, approvals, proactive messages, people sorted by "gone quiet"

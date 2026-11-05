@@ -119,4 +119,15 @@ async function handleQuiet(user, message) {
     : `*Proactive messages off*\n\nI'll only reply when you message me. Send /quiet again to turn them back on.`);
 }
 
-module.exports = { handleQuiet, handleLogin, handleLink, handleDeleteMyDataRequest, handleDeleteMyDataConfirm };
+/** "/improve on|off" — consent to anonymised use of messages for quality evals (ADR-017). */
+async function handleImprove(user, message) {
+  const arg = message.text.trim().toLowerCase().split(/\s+/)[1];
+  if (arg !== 'on' && arg !== 'off') {
+    await reply(message, `*Help improve Orga*\n\nSend /improve on to let anonymised copies of your messages (names, numbers, emails and links removed, then reviewed by a person) be used to test Orga's quality. /improve off stops it. Currently: ${user.evalOptIn ? 'on' : 'off'}.`);
+    return;
+  }
+  await prisma.user.update({ where: { id: user.id }, data: { evalOptIn: arg === 'on' } });
+  await reply(message, arg === 'on' ? '*Thanks!* Anonymised messages may now be used to test quality. Send /improve off any time.' : '*Done.* Your messages will not be used for quality tests.');
+}
+
+module.exports = { handleImprove, handleQuiet, handleLogin, handleLink, handleDeleteMyDataRequest, handleDeleteMyDataConfirm };

@@ -26,6 +26,7 @@ const { savePendingApprovals, resolveApproval, APPROVAL_BUTTONS } = require('./a
 const { emit, KINDS } = require('../interactions');
 const { memory } = require('../memory');
 const { log, warn } = require('../logger');
+const { getContext } = require('../context');
 
 const HISTORY_TURNS = 10;                    // messages of recent context
 const HISTORY_WINDOW_MS = 24 * 60 * 60 * 1000;
@@ -166,10 +167,11 @@ async function isAvailableFor(/** @type {string} */ userId) {
  * @param {{ id: string }} user @param {string} userText @param {import('./agent').AgentTurnResult} result @param {number} started
  */
 async function recordTurn(user, userText, result, started) {
+  const traceId = getContext()?.traceId ?? null; // links messages to this agent.turn (eval harvesting)
   await prisma.conversationMessage.createMany({
     data: [
-      { userId: user.id, role: 'user', content: userText.slice(0, 4000) },
-      { userId: user.id, role: 'assistant', content: result.text.slice(0, 4000) },
+      { userId: user.id, role: 'user', content: userText.slice(0, 4000), traceId },
+      { userId: user.id, role: 'assistant', content: result.text.slice(0, 4000), traceId },
     ],
   });
   emit({

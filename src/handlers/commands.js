@@ -372,6 +372,7 @@ async function handleHelp(user, intent, message) {
     `/privacy — what data is stored`,
     `/login — open your dashboard`,
     `/quiet — turn proactive messages on/off`,
+    `/improve — help test Orga's quality (opt-in)`,
     `/link — connect WhatsApp and Telegram`,
     `/help — this message`,
   ].join('\n');

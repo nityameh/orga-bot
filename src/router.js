@@ -18,7 +18,7 @@ const { getPendingEdit, getPendingConfirm, savePendingEdit, clearPending } = req
 const { handleReminderReply } = require('./scheduler');
 const { handleDelete, handleCancel, handleConfirmAction, handleUndo } = require('./handlers/delete');
 const { handleQuery } = require('./handlers/query');
-const { handleQuiet, handleLogin, handleLink, handleDeleteMyDataRequest, handleDeleteMyDataConfirm } = require('./handlers/account');
+const { handleImprove, handleQuiet, handleLogin, handleLink, handleDeleteMyDataRequest, handleDeleteMyDataConfirm } = require('./handlers/account');
 const { reply } = require('./channels');
 const { handleApprovalDecision } = require('./agent');
 const { log } = require('./logger');
@@ -109,6 +109,7 @@ async function routeCommand(user, message) {
   // ─── Account: dashboard login, channel linking, data deletion ─────────
   if (text === '/login') { await handleLogin(user, message); return true; }
   if (text === '/quiet' || text.startsWith('/quiet ')) { await handleQuiet(user, message); return true; }
+  if (text === '/improve' || text.startsWith('/improve ')) { await handleImprove(user, message); return true; }
   if (text === '/link' || text.startsWith('/link ')) { await handleLink(user, message); return true; }
   if (text === 'delete my data') { await handleDeleteMyDataRequest(user, message); return true; }
   if (text === 'confirm delete' && await handleDeleteMyDataConfirm(user, message)) return true;

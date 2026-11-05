@@ -22,6 +22,8 @@ export default defineConfig({
           testTimeout: 15000,
           hookTimeout: 15000,
           fileParallelism: false, // shared database
+          // Real processes: ESM-only deps (pg-boss) don't load inside vmThreads' VM contexts.
+          pool: 'forks',
         },
       },
     ],

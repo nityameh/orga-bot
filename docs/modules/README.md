@@ -16,6 +16,7 @@ Each starts with a plain-language summary, then goes into detail.
 | Interactions (event bus, Interaction log, trace context) | [interactions.md](interactions.md) | `src/interactions/`, `src/context.js` |
 | Users (identity, channel linking) | [users.md](users.md) | `src/users/` |
 | Handlers (notes, tasks, reminders, queries, commands, account) | [handlers.md](handlers.md) | `src/handlers/` |
+| Evals (quality suite, real-message harvesting) | [evals.md](evals.md) | `evals/`, `src/evals/` |
 | Jobs (pg-boss queue, retries, schedules) | [jobs.md](jobs.md) | `src/jobs/` |
 | Scheduler | [scheduler.md](scheduler.md) | `src/scheduler.js` |
 | Dashboard REST API | [api.md](api.md) | `src/api/` |
