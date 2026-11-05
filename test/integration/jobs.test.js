@@ -51,7 +51,7 @@ describe('pg-boss job queue', () => {
   }, 30_000);
 
   it('de-duplicates jobs with the same singleton key', async () => {
-    await queue.define('test.single', async () => { await new Promise((r) => setTimeout(r, 5000)); });
+    await queue.define('test.single', async () => { await new Promise((r) => setTimeout(r, 5000)); }, { policy: 'exclusive' });
     const a = await queue.send('test.single', {}, { singletonKey: 'rem-1' });
     const b = await queue.send('test.single', {}, { singletonKey: 'rem-1' });
     expect(a).toBeTruthy();

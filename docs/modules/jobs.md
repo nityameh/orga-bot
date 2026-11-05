@@ -13,7 +13,7 @@ restart doesn't lose it. Nothing extra to host: it runs inside the API process.
 | Queue | Schedule | What it does | On failure |
 |---|---|---|---|
 | `reminder.poll` | every minute | Claims due reminders atomically (`pending → fired`) and enqueues `reminder.send` (singleton key = reminder id) | Next minute |
-| `reminder.send` | on demand | Delivers one reminder via `notifyUser` | Retried 5× with exponential backoff (30 s → max 30 min), then → `reminder.failed` |
+| `reminder.send` | on demand (`exclusive` policy + singleton key: one job per reminder) | Delivers one reminder via `notifyUser` | Retried 5× with exponential backoff (30 s → max 30 min), then → `reminder.failed` |
 | `reminder.failed` | dead letter | Logs reminders that exhausted retries | — |
 | `digest.weekly` | Sun 18:00 IST | Weekly summary | Next week |
 | `cleanup.daily` | 03:00 IST | Expired pending actions, conversation memory > 7 days | Next day |
