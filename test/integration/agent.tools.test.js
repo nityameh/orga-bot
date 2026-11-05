@@ -106,3 +106,17 @@ describe('provider selection', () => {
     expect(selectProvider(base)).toBeNull();
   });
 });
+
+describe('reschedule_reminder (follow-ups like "move it to Monday")', () => {
+  it('moves only the user\'s own pending reminder and rejects past times', async () => {
+    const mine = await prisma.reminder.create({ data: { userId: me.id, title: 'Call Ravi', fireAt: inHours(5) } });
+    const theirs = await prisma.reminder.create({ data: { userId: other.id, title: 'theirs', fireAt: inHours(5) } });
+
+    const moved = await call('reschedule_reminder', { reminderId: mine.id, fireAt: ist(inHours(48)) });
+    expect(moved.ok).toBe(true);
+    expect((await prisma.reminder.findUnique({ where: { id: mine.id } })).fireAt.getTime()).toBe(new Date(ist(inHours(48))).getTime());
+
+    expect(await call('reschedule_reminder', { reminderId: theirs.id, fireAt: ist(inHours(48)) })).toMatchObject({ ok: false });
+    expect(await call('reschedule_reminder', { reminderId: mine.id, fireAt: ist(inHours(-2)) })).toMatchObject({ ok: false });
+  });
+});

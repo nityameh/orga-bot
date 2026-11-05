@@ -29,7 +29,7 @@ re-running on another path could save a note twice.
 | `src/agent/toolRegistry.js` | `createToolRegistry()`: JSON-schema definitions, Zod validation, permission gate; `ToolInputError` |
 | `src/agent/tools/notes.js` | `save_note`, `search_notes` |
 | `src/agent/tools/tasks.js` | `create_task_list`, `list_tasks`, `complete_task_item` |
-| `src/agent/tools/reminders.js` | `create_reminder`, `list_reminders`, `cancel_reminder`, `get_today` |
+| `src/agent/tools/reminders.js` | `create_reminder`, `list_reminders`, `cancel_reminder`, `reschedule_reminder`, `get_today` |
 | `src/agent/tools/google.js` | `list_calendar_events`, `create_calendar_event` (needs approval), `search_email` (registered only when Google is configured) |
 | `src/agent/approvals.js` | Human-in-the-loop approvals for `external` tools (see [integrations.md](integrations.md#approvals-human-in-the-loop)) |
 | `src/agent/prompt.js` | Loads `prompts/agent.system.v1.md`; builds the per-request context (time, name, channel) |
@@ -39,6 +39,7 @@ re-running on another path could save a note twice.
 | `src/llm/anthropicProvider.js` | Claude: prompt caching, effort, server-side refusal fallback |
 | `src/llm/groqProvider.js` | Groq (OpenAI-compatible) with message translation; free dev/eval option |
 | `src/llm/pricing.js` | $/MTok table → `costMicros()` |
+| `src/llm/fallbackProvider.js` | Fallback chain + per-call timeout + circuit breaker |
 | `prompts/agent.system.v1.md` | The system prompt (versioned; front matter documents purpose and changelog) |
 | `evals/agent/cases.json`, `evals/run-agent-evals.js` | Eval dataset and runner |
 
@@ -96,6 +97,14 @@ npm run evals -- --update-baseline    # record the current pass rate in evals/ba
 - CI (`.github/workflows/evals.yml`) runs on PRs touching the agent, providers,
   prompts or evals; fails on a drop of more than 2 points vs the baseline.
 - The grader itself is unit-tested (`test/unit/evals.grader.test.js`).
+
+## Resilience
+- Every model call has a timeout (`AGENT_LLM_TIMEOUT_MS`, default 25 s).
+- Providers form a fallback chain (configured primary, then any other configured
+  provider) with a circuit breaker: 3 consecutive failures → skipped for 60 s.
+  See `src/llm/fallbackProvider.js`.
+- All providers down → no tool has run yet → legacy classifier; otherwise the user
+  gets "I'm having trouble on my side right now. Please try again in a minute."
 
 ## Observability
 Each turn emits an `agent.turn` Interaction with tokens (incl. cache), cost in

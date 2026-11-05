@@ -44,6 +44,8 @@ export default defineConfig({
         'src/integrations/{tokenVault,google/oauth,google/client}.js': { lines: 90, functions: 90 },
         'src/memory/{ranking,service}.js': { lines: 85 },
         'src/proactive/engine.js': { lines: 90, functions: 90 },
+        'src/llm/fallbackProvider.js': { lines: 90, functions: 90 },
+        'src/interactions/metrics.js': { lines: 90 },
       },
     },
   },

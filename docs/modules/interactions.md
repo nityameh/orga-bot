@@ -51,6 +51,12 @@ tokensIn, tokensOut, costMicros, createdAt`. Indexed by
 `(userId, createdAt)`, `(userId, kind, createdAt)`, `(userId, person, createdAt)`
 for the dashboard's timeline, per-kind and per-person queries.
 
+## Metrics
+`src/interactions/metrics.js` turns rows into operational numbers (latency
+p50/p95, tokens and cost per turn, cache hit rate, failovers, tool error rate,
+active users, approvals, nudges). `npm run metrics [days]` prints them; the
+Phase 5 analytics API reuses the same function.
+
 ## Design rules
 - **Single write path:** only `recorder.js` writes Interaction rows.
 - **Analytics can't break replies:** subscriber failures are isolated.

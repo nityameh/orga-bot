@@ -49,6 +49,7 @@ const EnvSchema = z
     AGENT_MODEL: optionalString,           // default per provider (see src/agent/index.js)
     AGENT_EFFORT: z.enum(['low', 'medium', 'high']).default('low'),
     AGENT_MAX_STEPS: z.coerce.number().int().min(1).max(12).default(6),
+    AGENT_LLM_TIMEOUT_MS: z.coerce.number().int().min(2000).max(120_000).default(25_000), // per model call, then fail over
     AGENT_DAILY_TOKEN_BUDGET: z.coerce.number().int().min(1000).default(300_000),
 
     // Dashboard + auth (ADR-006)

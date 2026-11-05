@@ -1,5 +1,5 @@
 {
-  "description": "Agent behaviour evals (ADR-013). Reference time: Thursday 2026-11-05 10:00 IST. Graders are deterministic: expected tool calls and argument matchers. Matchers: plain value = equals (case-insensitive for strings); {\"startsWith\"}, {\"contains\"}, {\"regex\"}, {\"includesAll\"} for arrays.",
+  "description": "Agent behaviour evals (ADR-013). Reference time: Thursday 2026-11-05 10:00 IST. Graders are deterministic: expected tool calls and argument matchers. Matchers: plain value = equals (case-insensitive for strings); {\"startsWith\"}, {\"contains\"}, {\"regex\"}, {\"includesAll\"} for arrays. Cases may include \"history\" (earlier turns) to test follow-ups.",
   "now": "2026-11-05T10:00:00+05:30",
   "cases": [
     {
@@ -584,6 +584,128 @@
         "forbiddenTools": [
           "create_calendar_event",
           "cancel_reminder",
+          "create_reminder"
+        ]
+      }
+    },
+    {
+      "id": "hinglish-kal-shaam-5-baje",
+      "suite": "hinglish",
+      "input": "kal shaam 5 baje dentist ka reminder laga do",
+      "expect": {
+        "tools": [
+          {
+            "name": "create_reminder",
+            "args": {
+              "fireAt": {
+                "startsWith": "2026-11-06T17:00"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "hinglish-kal-5-baje-ambiguous",
+      "suite": "hinglish",
+      "input": "kal 5 baje Sharma ji ko call karna hai, yaad dilana",
+      "expect": {
+        "tools": [
+          {
+            "name": "create_reminder",
+            "args": {
+              "fireAt": {
+                "regex": "^2026-11-06T(05|17):00"
+              }
+            }
+          }
+        ],
+        "replyMatchesRegexAny": [
+          "(?i)5",
+          "(?i)17"
+        ]
+      }
+    },
+    {
+      "id": "followup-move-to-monday",
+      "suite": "context",
+      "history": [
+        {
+          "role": "user",
+          "content": "remind me tomorrow 9am to call Ravi"
+        },
+        {
+          "role": "assistant",
+          "content": "Done. I'll remind you to *Call Ravi* on Fri, 6 Nov 2026, 9:00 am."
+        }
+      ],
+      "input": "actually move it to Monday",
+      "fixtures": {
+        "list_reminders": {
+          "reminders": [
+            {
+              "reminderId": "r1",
+              "title": "Call Ravi",
+              "when": "Fri, 6 Nov 2026, 9:00 am"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "tools": [
+          {
+            "name": "reschedule_reminder",
+            "args": {
+              "reminderId": "r1",
+              "fireAt": {
+                "startsWith": "2026-11-09T09:00"
+              }
+            }
+          }
+        ],
+        "forbiddenTools": [
+          "create_reminder"
+        ]
+      }
+    },
+    {
+      "id": "followup-make-it-5pm",
+      "suite": "context",
+      "history": [
+        {
+          "role": "user",
+          "content": "remind me Monday 11am to send the Acme invoice"
+        },
+        {
+          "role": "assistant",
+          "content": "Done. I'll remind you to *Send the Acme invoice* on Mon, 9 Nov 2026, 11:00 am."
+        }
+      ],
+      "input": "make it 5pm instead",
+      "fixtures": {
+        "list_reminders": {
+          "reminders": [
+            {
+              "reminderId": "r7",
+              "title": "Send the Acme invoice",
+              "when": "Mon, 9 Nov 2026, 11:00 am"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "tools": [
+          {
+            "name": "reschedule_reminder",
+            "args": {
+              "reminderId": "r7",
+              "fireAt": {
+                "startsWith": "2026-11-09T17:00"
+              }
+            }
+          }
+        ],
+        "forbiddenTools": [
           "create_reminder"
         ]
       }
