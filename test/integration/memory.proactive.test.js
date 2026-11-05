@@ -9,7 +9,7 @@ const { createRules } = require('../../src/proactive/rules');
 const { createHashEmbedder } = require('../fakes/hashEmbedder');
 
 let me, other, budgetNote, inkNote;
-const memory = createMemoryService({ prisma, embedder: createHashEmbedder() });
+const memory = createMemoryService({ prisma, embedder: createHashEmbedder(), minSimilarity: 0.1 });
 const keywordOnly = createMemoryService({ prisma, embedder: null });
 
 beforeAll(async () => {
@@ -28,10 +28,20 @@ afterAll(async () => {
 });
 
 describe('memory service', () => {
-  it('indexes notes into embeddings for their owner', async () => {
-    const rows = await prisma.embedding.findMany({ where: { userId: me.id } });
+  it('indexes notes into pgvector for their owner', async () => {
+    const rows = await prisma.$queryRaw`SELECT "sourceId", vector_dims("embedding") AS dims FROM "Embedding" WHERE "userId" = ${me.id}`;
     expect(rows.map((r) => r.sourceId).sort()).toEqual([budgetNote.id, inkNote.id].sort());
-    expect(rows[0].vector).toHaveLength(64);
+    expect(Number(rows[0].dims)).toBe(384);
+  });
+
+  it('uses the HNSW index for nearest-neighbour search', async () => {
+    const [{ indexdef }] = await prisma.$queryRaw`SELECT indexdef FROM pg_indexes WHERE indexname = 'Embedding_embedding_hnsw_idx'`;
+    expect(indexdef).toMatch(/USING hnsw .*vector_cosine_ops/);
+  });
+
+  it('vector search alone finds a note that shares no keyword with the query wording order', async () => {
+    const res = await memory.search(me.id, 'approved budget ravi', 5);
+    expect(res.ids.map((r) => r.id)).toContain(budgetNote.id);
   });
 
   it('hybrid search ranks the relevant note first and stays within the user', async () => {

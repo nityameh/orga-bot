@@ -21,7 +21,7 @@ jobs:
     timeout-minutes: 15
     services:
       postgres:
-        image: postgres:16
+        image: pgvector/pgvector:pg16   # Postgres 16 + pgvector (ADR-016)
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
@@ -46,7 +46,7 @@ jobs:
       - name: Apply migrations to a fresh database
         run: npx prisma migrate deploy
       - name: Check schema and migrations are in sync
-        run: npx prisma migrate diff --from-url "$DATABASE_URL" --to-schema-datamodel prisma/schema.prisma --exit-code
+        run: node scripts/check-schema-drift.js
       - name: Unit + integration tests with coverage thresholds
         run: npm run test:coverage
       - uses: actions/upload-artifact@v4

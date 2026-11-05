@@ -1,10 +1,12 @@
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [vector]   // pgvector: vector similarity search (ADR-016)
 }
 
 model User {
@@ -198,16 +200,16 @@ model Integration {
   @@unique([userId, provider])
 }
 
-// Vector embeddings of user content for semantic search (ADR-011). Stored as a
-// plain float array and compared in-process: free (no pgvector/vector DB) and
-// fast enough at personal scale. Swap the storage behind src/memory when needed.
+// Vector embeddings of user content for semantic search (ADR-011, ADR-016).
+// pgvector column with an HNSW index (cosine distance) created in the migration;
+// Prisma can't model the index, so reads/writes go through $queryRaw.
 model Embedding {
   id         String   @id @default(cuid())
   userId     String
   sourceType String                          // "note" | "task"
   sourceId   String
   content    String                          // the text that was embedded (for debugging/re-ranking)
-  vector     Float[]
+  embedding  Unsupported("vector(384)")?   // multilingual-e5-small dimensions
   model      String                          // re-embed when the model changes
   createdAt  DateTime @default(now())
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
