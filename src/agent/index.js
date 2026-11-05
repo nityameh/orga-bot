@@ -9,13 +9,14 @@ const prisma = require('../db');
 const { getConfig } = require('../config');
 const { createAnthropicProvider } = require('../llm/anthropicProvider');
 const { createGroqProvider } = require('../llm/groqProvider');
+const { createFallbackProvider } = require('../llm/fallbackProvider');
 const { createToolRegistry } = require('./toolRegistry');
 const { runAgentTurn } = require('./agent');
 const { loadPrompt, buildDynamicContext, PROMPT_VERSION } = require('./prompt');
 const { startOfDayIST } = require('./time');
 const { saveNote, searchNotes } = require('./tools/notes');
 const { createTaskList, listTasks, completeTaskItem } = require('./tools/tasks');
-const { createReminder, listReminders, cancelReminder, getToday } = require('./tools/reminders');
+const { createReminder, listReminders, cancelReminder, rescheduleReminder, getToday } = require('./tools/reminders');
 const { createGoogleTools } = require('./tools/google');
 const { googleEnabled, googleApi } = require('../integrations');
 const { savePendingApprovals, resolveApproval, APPROVAL_BUTTONS } = require('./approvals');
@@ -30,7 +31,7 @@ const DEFAULT_MODELS = { anthropic: 'claude-opus-5-5', groq: 'llama-3.3-70b-vers
 const tools = createToolRegistry([
   saveNote, searchNotes,
   createTaskList, listTasks, completeTaskItem,
-  createReminder, listReminders, cancelReminder, getToday,
+  createReminder, listReminders, cancelReminder, rescheduleReminder, getToday,
   ...(googleEnabled && googleApi ? createGoogleTools(googleApi) : []),
 ]);
 
@@ -51,13 +52,26 @@ function selectProvider(config) {
   return null;
 }
 
+/**
+ * Primary provider plus every other configured provider as a fallback, in
+ * priority order (e.g. Claude → Groq). Pure; exported for tests.
+ * @param {import('../config').Config} config
+ */
+function selectProviderChain(config) {
+  const primary = selectProvider(config);
+  if (!primary) return [];
+  const chain = [primary];
+  if (primary.name !== 'groq' && config.GROQ_API_KEY) chain.push({ name: 'groq', apiKey: config.GROQ_API_KEY, model: DEFAULT_MODELS.groq });
+  if (primary.name !== 'anthropic' && config.ANTHROPIC_API_KEY) chain.push({ name: 'anthropic', apiKey: config.ANTHROPIC_API_KEY, model: DEFAULT_MODELS.anthropic });
+  return chain;
+}
+
 const config = getConfig();
-const choice = selectProvider(config);
-const provider = choice?.name === 'anthropic'
-  ? createAnthropicProvider({ apiKey: choice.apiKey, model: choice.model, effort: config.AGENT_EFFORT })
-  : choice?.name === 'groq'
-    ? createGroqProvider({ apiKey: choice.apiKey, model: choice.model })
-    : null;
+const chain = selectProviderChain(config).map((c) => (c.name === 'anthropic'
+  ? createAnthropicProvider({ apiKey: c.apiKey, model: c.model, effort: config.AGENT_EFFORT })
+  : createGroqProvider({ apiKey: c.apiKey, model: c.model })));
+// Always wrapped: even a single provider gets a timeout and a circuit breaker.
+const provider = chain.length ? createFallbackProvider(chain, { timeoutMs: config.AGENT_LLM_TIMEOUT_MS }) : null;
 
 let systemPrompt = '';
 if (provider) {
@@ -180,4 +194,4 @@ async function handleWithAgent(user, message) {
   return { text: result.text, buttons: approvals.length ? [...APPROVAL_BUTTONS] : undefined };
 }
 
-module.exports = { handleWithAgent, handleApprovalDecision, isAvailableFor, selectProvider, tools };
+module.exports = { handleWithAgent, handleApprovalDecision, isAvailableFor, selectProvider, selectProviderChain, tools, provider };

@@ -6,6 +6,16 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Commits follow
 
 ## [Unreleased]
 
+### Resilience + interview readiness
+#### Added
+- LLM fallback chain (Claude → Groq) with per-call timeout and circuit breaker
+- `reschedule_reminder` tool for follow-ups ("move it to Monday", "make it 5pm instead")
+- Metrics aggregation (`npm run metrics`): latency p50/p95, tokens/cost per turn, cache hit rate, failovers, tool error rate, active users
+- Eval harness: conversation history in cases, latency and per-case cost in reports; new Hinglish-time and follow-up cases (32 total)
+- `docs/INTERVIEW_GUIDE.md`: answers backed by code and tests
+#### Changed
+- Friendlier user message when every model is unavailable
+
 ### Phase 4: Memory + proactive (all free/open-source)
 #### Added
 - Semantic search with a free local multilingual embedding model (Transformers.js, multilingual-e5-small); English/Hindi/Hinglish

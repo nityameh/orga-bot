@@ -131,7 +131,7 @@ function createWebhookRouter() {
             await processInbound(message);
           } catch (err) {
             error('message.fatal_error', { channel: message.channel, err: err.message });
-            await reply(message, 'Something went wrong on my end. Try again in a moment.').catch(() => {
+            await reply(message, "I'm having trouble on my side right now. Please try again in a minute.").catch(() => {
               error('message.error_reply_failed', { channel: message.channel });
             });
           }

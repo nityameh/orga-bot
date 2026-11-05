@@ -47,6 +47,7 @@ const DEFAULT_RESULTS = {
   create_reminder: (a) => ({ reminderId: 'r_new', title: a.title, when: a.fireAt }),
   list_reminders: () => ({ reminders: [] }),
   cancel_reminder: () => ({ cancelled: 'reminder' }),
+  reschedule_reminder: (a) => ({ title: 'reminder', to: a.fireAt }),
   get_today: () => ({ now: 'Thu, 5 Nov 2026, 10:00 am', remindersToday: [], openTaskItems: [], openTaskCount: 0 }),
   list_calendar_events: () => ({ events: [] }),
   create_calendar_event: (a) => ({ created: a.title }),
@@ -107,6 +108,14 @@ function grade(expect, calls, reply) {
   return failures;
 }
 
+/** Nearest-rank percentiles. Pure; exported for tests. @param {number[]} values */
+function latencyStats(values) {
+  if (!values.length) return { p50: 0, p95: 0 };
+  const sorted = [...values].sort((a, b) => a - b);
+  const at = (p) => sorted[Math.min(sorted.length - 1, Math.ceil((p / 100) * sorted.length) - 1)];
+  return { p50: at(50), p95: at(95) };
+}
+
 // ─── Run ───────────────────────────────────────────────────────────────────
 
 async function main() {
@@ -135,21 +144,23 @@ async function main() {
     const calls = [];
     const started = Date.now();
     let reply = '';
+    let lastCost = 0;
     let failures;
     try {
       const turn = await runAgentTurn(
         { provider, tools: fakeRegistry(c.fixtures, calls), systemPrompt, maxSteps: 6 },
         // External tools park an approval request; record it as the agent's chosen action.
-        { ctx: { user: { id: 'eval' }, now, requestApproval: (r) => calls.push({ name: r.toolName, args: r.input, approval: true }) }, history: [], text: c.input, dynamicSystem: buildDynamicContext({ now, channel: 'whatsapp' }) },
+        { ctx: { user: { id: 'eval' }, now, requestApproval: (r) => calls.push({ name: r.toolName, args: r.input, approval: true }) }, history: c.history ?? [], text: c.input, dynamicSystem: buildDynamicContext({ now, channel: 'whatsapp' }) },
       );
       reply = turn.text;
       costMicros += turn.costMicros;
+      lastCost = turn.costMicros;
       failures = grade(c.expect, calls, reply);
     } catch (err) {
       failures = [`error: ${err.message}`];
     }
     const pass = failures.length === 0;
-    results.push({ id: c.id, suite: c.suite, pass, failures, calls, reply, ms: Date.now() - started });
+    results.push({ id: c.id, suite: c.suite, pass, failures, calls, reply, ms: Date.now() - started, costMicros: lastCost });
     console.log(`${pass ? '✓' : '✗'} ${c.id.padEnd(28)} ${pass ? '' : failures.join('; ')}`);
     if (provider.name === 'groq') await new Promise((r) => setTimeout(r, 1500)); // free-tier rate limits
   }
@@ -165,13 +176,15 @@ async function main() {
 
   console.log(`\nPass rate: ${(passRate * 100).toFixed(1)}% (${passed}/${results.length})`);
   for (const [suite, s] of Object.entries(bySuite)) console.log(`  ${suite.padEnd(10)} ${s.passed}/${s.total}`);
-  console.log(`Cost: $${(costMicros / 1e6).toFixed(4)}`);
+  const latency = latencyStats(results.map((r) => r.ms));
+  console.log(`Latency per case: p50 ${latency.p50} ms · p95 ${latency.p95} ms`);
+  console.log(`Cost: $${(costMicros / 1e6).toFixed(4)} total · $${(costMicros / 1e6 / results.length).toFixed(5)} per case`);
 
   const key = `${provider.name}/${provider.model}`;
   const reportDir = path.join(__dirname, 'reports');
   fs.mkdirSync(reportDir, { recursive: true });
   const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-  const report = { key, prompt: PROMPT_VERSION, passRate, passed, total: results.length, bySuite, costUSD: costMicros / 1e6, results };
+  const report = { key, prompt: PROMPT_VERSION, passRate, passed, total: results.length, bySuite, latencyMs: latency, costUSD: costMicros / 1e6, results };
   fs.writeFileSync(path.join(reportDir, `${stamp}-${provider.name}.json`), JSON.stringify(report, null, 2));
 
   // Baseline comparison only for full-suite runs.
@@ -196,4 +209,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { grade, matches, allTools };
+module.exports = { grade, matches, allTools, latencyStats };

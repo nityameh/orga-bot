@@ -13,6 +13,8 @@ Start here. Each document has one job.
 | Work effectively with AI coding agents | [AI_WORKFLOW.md](AI_WORKFLOW.md) |
 | Write a new ADR or module doc | [templates/](templates/) |
 | Understand security risks and mitigations | [security/THREAT_MODEL.md](security/THREAT_MODEL.md) |
+| Explain the project in an interview (answers + evidence) | [INTERVIEW_GUIDE.md](INTERVIEW_GUIDE.md) |
+| See measured numbers | [METRICS.md](METRICS.md) |
 
 ## Documentation rules
 1. **Code and docs change in the same PR.** A PR that changes behaviour without updating docs is incomplete.

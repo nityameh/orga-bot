@@ -77,6 +77,34 @@ const cancelReminder = {
 };
 
 /** @type {import('../toolRegistry').Tool<any>} */
+const rescheduleReminder = {
+  name: 'reschedule_reminder',
+  description:
+    'Move a pending reminder to a new time (follow-ups like "move it to Monday" or "make it 5pm instead"). ' +
+    'Needs the reminderId from create_reminder or list_reminders. Keep the original time of day unless the user gives a new one.',
+  permission: 'write',
+  inputSchema: z.strictObject({
+    reminderId: z.string().min(1),
+    fireAt: isoWithOffset.describe('New time, ISO 8601 with +05:30 offset'),
+  }),
+  async execute({ reminderId, fireAt }, { user, now }) {
+    const when = new Date(fireAt);
+    if (Number.isNaN(when.getTime())) throw new ToolInputError('fireAt is not a valid date.');
+    if (when <= now) throw new ToolInputError(`fireAt (${formatIST(when)}) is in the past; it is now ${formatIST(now)}.`);
+
+    // Scoped, conditional update: only this user's still-pending reminder can move.
+    const reminder = await prisma.reminder.findFirst({ where: { id: reminderId, userId: user.id, status: { in: ['pending', 'snoozed'] } } });
+    if (!reminder) throw new ToolInputError('No pending reminder with that id.');
+    await prisma.reminder.updateMany({
+      where: { id: reminderId, userId: user.id, status: { in: ['pending', 'snoozed'] } },
+      data: { fireAt: when, status: 'pending', snoozeUntil: null },
+    });
+    emit({ kind: KINDS.REMINDER_SNOOZED, userId: user.id, summary: reminder.title, payload: { reminderId, until: when.toISOString(), via: 'agent', reason: 'rescheduled' } });
+    return { title: reminder.title, from: formatIST(reminder.fireAt), to: formatIST(when) };
+  },
+};
+
+/** @type {import('../toolRegistry').Tool<any>} */
 const getToday = {
   name: 'get_today',
   description: "Overview of the user's day: today's remaining reminders and open task items. Use for \"what's my day\" style questions.",
@@ -101,4 +129,4 @@ const getToday = {
   },
 };
 
-module.exports = { createReminder, listReminders, cancelReminder, getToday };
+module.exports = { createReminder, listReminders, cancelReminder, rescheduleReminder, getToday };
