@@ -23,7 +23,9 @@
     "evals": "node evals/run-agent-evals.js",
     "embeddings:check": "node scripts/check-embedder.js",
     "embeddings:backfill": "node scripts/backfill-embeddings.js",
-    "metrics": "node scripts/report-metrics.js"
+    "metrics": "node scripts/report-metrics.js",
+    "evals:harvest": "node scripts/harvest-evals.js",
+    "evals:promote": "node scripts/promote-evals.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.4.0",

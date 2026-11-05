@@ -24,3 +24,6 @@ evals/reports/
 
 # Downloaded open-source ML models
 .cache/
+
+# Harvested eval candidates contain (anonymised) user messages — never commit before review
+evals/review/

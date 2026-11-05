@@ -93,7 +93,8 @@ phase until the previous exit criterion passes. Tick items in the PR that comple
 - [x] **pgvector**: real vector database (HNSW index, cosine distance) replaces in-app vector scans (ADR-016)
 - [x] **LangGraph** agent orchestration: state graph, Postgres checkpointer, durable human-in-the-loop via `interrupt()`; approvals resume the same turn (ADR-015)
 - [x] **pg-boss** job queue in-process: retries with backoff across restarts, singleton jobs, dead-letter; reminders as delayed jobs (ADR-009 accepted)
-- [ ] **Eval set from real anonymised messages**: opt-in (`/improve`), PII masking, harvested candidates go to a human-review queue before joining the eval set (ADR-017)
+- [x] **Eval set from real anonymised messages** (tooling: consent, anonymiser, review queue, promote)
+- [ ] Reach 20+ reviewed real-message cases (needs real usage): opt-in (`/improve`), PII masking, harvested candidates go to a human-review queue before joining the eval set (ADR-017)
 
 **Exit:** retrieval uses an ANN index; an approval survives a restart and the agent finishes the turn after it; a reminder whose send fails is retried after a restart; at least 20 reviewed real-message eval cases.
 

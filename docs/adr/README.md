@@ -31,3 +31,4 @@ can see **what** was decided, **why**, and **what was rejected**.
 | [014](ADR-014-mcp-server.md) | Expose Orga's tools as an MCP server | Proposed |
 | [015](ADR-015-langgraph-orchestration.md) | LangGraph orchestration with durable interrupts; keep our LLM provider layer | Accepted |
 | [016](ADR-016-pgvector.md) | pgvector (HNSW, cosine) as the vector database | Accepted |
+| [017](ADR-017-eval-set-from-real-messages.md) | Eval set from real, consented, anonymised, human-reviewed messages | Accepted |

@@ -15,6 +15,7 @@ model User {
   tier      String     @default("free")  // "free" | "pro" | "team"
   lang      String     @default("en")    // "en" | "hi"
   proactive Boolean    @default(true)    // proactive nudges on/off (/quiet)
+  evalOptIn Boolean    @default(false)   // consent to anonymised eval harvesting (/improve), ADR-017
   createdAt DateTime   @default(now())
   notes          Note[]
   tasks          Task[]
@@ -175,6 +176,7 @@ model ConversationMessage {
   userId    String
   role      String                           // "user" | "assistant"
   content   String
+  traceId   String?                          // links the message to its agent.turn Interaction
   createdAt DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
