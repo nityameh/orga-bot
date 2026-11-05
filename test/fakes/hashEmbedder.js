@@ -3,7 +3,7 @@
 // a small normalised vector. Shared words → high similarity. No downloads, no
 // randomness — lets tests exercise the vector path and RRF end to end.
 
-const DIMS = 64;
+const DIMS = 384; // matches the pgvector column (multilingual-e5-small)
 
 function hashWord(word) {
   let h = 2166136261;
@@ -20,7 +20,7 @@ function embed(text) {
 
 function createHashEmbedder() {
   return {
-    model: 'test-hash-64',
+    model: 'test-hash-384',
     embedQueries: async (texts) => texts.map(embed),
     embedPassages: async (texts) => texts.map(embed),
   };

@@ -1,23 +1,33 @@
 // @ts-check
 // src/memory/service.js
-// Semantic memory over the user's notes and task lists (ADR-011):
-//   index(sourceType, id)   embed content and upsert its Embedding row
-//   search(userId, query)   hybrid retrieval: Postgres full-text + vector
-//                           similarity, fused with Reciprocal Rank Fusion
+// Semantic memory over the user's notes and task lists (ADR-011, ADR-016):
+//   index(sourceType, id)   embed content and upsert its pgvector row
+//   search(userId, query)   hybrid retrieval: Postgres full-text + pgvector
+//                           nearest neighbours (HNSW, cosine), fused with
+//                           Reciprocal Rank Fusion
 // The embedder is injected (local open-source model in prod, fake in tests).
 // Docs: docs/modules/memory.md
 
-const { topK, reciprocalRankFusion } = require('./ranking');
+const crypto = require('crypto');
+const { reciprocalRankFusion } = require('./ranking');
 
-const MAX_VECTORS_PER_USER = 5000; // in-process scan stays ~ms at this size
 const MAX_CONTENT = 2000;
+const MIN_SIMILARITY = 0.75;  // cosine similarity floor (e5 scores are compressed: unrelated ≈ 0.73)
+const EF_SEARCH = 100;        // HNSW candidate list; higher = better recall when filtering by user
+
+/** pgvector text literal: '[0.1,0.2,…]' (validated numbers only, never user text). @param {number[]} v */
+function toVectorLiteral(v) {
+  if (!v.every((x) => Number.isFinite(x))) throw new Error('Embedding contains non-finite values');
+  return `[${v.join(',')}]`;
+}
 
 /**
  * @param {Object} deps
  * @param {import('@prisma/client').PrismaClient} deps.prisma
  * @param {import('./embedder').Embedder | null} deps.embedder  null → keyword-only search
+ * @param {number} [deps.minSimilarity]  cosine floor for vector hits (tests use a fake embedder with a different scale)
  */
-function createMemoryService({ prisma, embedder }) {
+function createMemoryService({ prisma, embedder, minSimilarity = MIN_SIMILARITY }) {
   /** @param {'note' | 'task'} type @param {string} id */
   async function loadSource(type, id) {
     if (type === 'note') {
@@ -44,11 +54,12 @@ function createMemoryService({ prisma, embedder }) {
     }
     const content = source.content.slice(0, MAX_CONTENT);
     const [vector] = await embedder.embedPassages([content]);
-    await prisma.embedding.upsert({
-      where: { sourceType_sourceId: { sourceType, sourceId } },
-      create: { userId: source.userId, sourceType, sourceId, content, vector, model: embedder.model },
-      update: { content, vector, model: embedder.model },
-    });
+    // Raw SQL: Prisma can't write the pgvector type. All values are bound parameters.
+    await prisma.$executeRaw`
+      INSERT INTO "Embedding" ("id", "userId", "sourceType", "sourceId", "content", "embedding", "model", "createdAt")
+      VALUES (${crypto.randomUUID()}, ${source.userId}, ${sourceType}, ${sourceId}, ${content}, ${toVectorLiteral(vector)}::vector, ${embedder.model}, now())
+      ON CONFLICT ("sourceType", "sourceId")
+      DO UPDATE SET "content" = EXCLUDED."content", "embedding" = EXCLUDED."embedding", "model" = EXCLUDED."model"`;
   }
 
   /**
@@ -70,17 +81,28 @@ function createMemoryService({ prisma, embedder }) {
     return rows.map((r) => `note:${r.id}`);
   }
 
-  /** @param {string} userId @param {string} query @param {number} limit */
+  /**
+   * Nearest neighbours in pgvector (cosine distance `<=>`, HNSW index), scoped
+   * to the user and the current model. ef_search is raised inside the
+   * transaction so the user filter doesn't starve the approximate search.
+   * @param {string} userId @param {string} query @param {number} limit
+   */
   async function vectorIds(userId, query, limit) {
     if (!embedder) return [];
     const [queryVector] = await embedder.embedQueries([query]);
-    const rows = await prisma.embedding.findMany({
-      where: { userId, model: embedder.model },
-      select: { sourceType: true, sourceId: true, vector: true },
-      take: MAX_VECTORS_PER_USER,
-      orderBy: { createdAt: 'desc' },
-    });
-    return topK(queryVector, rows, limit).map((r) => `${r.sourceType}:${r.sourceId}`);
+    const literal = toVectorLiteral(queryVector);
+    const [, rows] = await prisma.$transaction([
+      prisma.$executeRawUnsafe(`SET LOCAL hnsw.ef_search = ${EF_SEARCH}`),
+      prisma.$queryRaw`
+        SELECT "sourceType", "sourceId", 1 - ("embedding" <=> ${literal}::vector) AS score
+        FROM "Embedding"
+        WHERE "userId" = ${userId} AND "model" = ${embedder.model} AND "embedding" IS NOT NULL
+        ORDER BY "embedding" <=> ${literal}::vector
+        LIMIT ${limit}`,
+    ]);
+    return /** @type {Array<{ sourceType: string, sourceId: string, score: number }>} */ (rows)
+      .filter((r) => Number(r.score) >= minSimilarity)
+      .map((r) => `${r.sourceType}:${r.sourceId}`);
   }
 
   /**
@@ -126,4 +148,4 @@ function createMemoryService({ prisma, embedder }) {
 
 /** @typedef {ReturnType<typeof createMemoryService>} MemoryService */
 
-module.exports = { createMemoryService };
+module.exports = { createMemoryService, toVectorLiteral };

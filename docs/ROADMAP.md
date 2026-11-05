@@ -87,6 +87,16 @@ phase until the previous exit criterion passes. Tick items in the PR that comple
 
 **Exit:** a friend opens the dashboard and answers "who did I neglect this month, and what did I promise them?" in under a minute.
 
+## Phase 5.5: Platform Upgrades (in progress)
+*Industry-standard building blocks, all free/open-source and on the existing Postgres.*
+
+- [ ] **pgvector**: real vector database (HNSW index, cosine distance) replaces in-app vector scans (ADR-016)
+- [ ] **LangGraph** agent orchestration: state graph, Postgres checkpointer, durable human-in-the-loop via `interrupt()`; approvals resume the same turn (ADR-015)
+- [ ] **pg-boss** job queue in-process: retries with backoff across restarts, singleton jobs, dead-letter; reminders as delayed jobs (ADR-009 accepted)
+- [ ] **Eval set from real anonymised messages**: opt-in (`/improve`), PII masking, harvested candidates go to a human-review queue before joining the eval set (ADR-017)
+
+**Exit:** retrieval uses an ANN index; an approval survives a restart and the agent finishes the turn after it; a reminder whose send fails is retried after a restart; at least 20 reviewed real-message eval cases.
+
 ## Phase 6: Stretch (pick one or two)
 - [ ] MCP server exposing Orga tools to Claude Desktop / IDEs ([ADR-014](adr/ADR-014-mcp-server.md))
 - [ ] Voice notes → speech-to-text → agent (very common usage in India)
