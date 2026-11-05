@@ -1,6 +1,6 @@
 # ADR-009: Use pg-boss for background jobs and scheduling
 
-**Status:** Deferred (amended 2026-11-05)
+**Status:** Accepted (re-accepted 2026-11-06: in-process, no extra service)
 **Date:** 2026-11-04
 **Deciders:** Nitya
 
@@ -34,6 +34,13 @@ scale the single process with `node-cron` suffices. The main correctness risk
 a conditional `UPDATE … WHERE status = 'pending'`, and proactive nudges are
 deduplicated by key. Adopt pg-boss when jobs need retries with backoff across
 restarts or when the API is scaled to more than one instance.
+
+## Amendment (2026-11-06): accepted, in-process
+pg-boss runs inside the API process against the existing Postgres (schema
+`pgboss`), so the cost objection no longer applies. Reminders: the poller claims
+atomically and enqueues `reminder.send` (singleton key), which retries 5× with
+exponential backoff and dead-letters to `reminder.failed`. All cron work moves to
+pg-boss schedules (run once across instances). node-cron remains as a fallback.
 
 ## Revisit When
 Over ~100 jobs/second, or Redis is needed for something else anyway.

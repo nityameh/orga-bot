@@ -22,6 +22,6 @@ Also exports `handleReminderReply(user, message)` for `DONE` / `SNOOZE` replies
 |---|---|
 | Server restarts | No reminder is lost; the next tick re-reads the DB |
 | Two app instances | Safe: each reminder is claimed with a conditional update; only the claimant sends it |
-| Retry timer pending during restart | The `setTimeout` retry is lost; reminder stays `fired` |
+| Delivery failure / restart mid-retry | Retried by pg-boss with backoff, persisted in Postgres (see [jobs.md](jobs.md)) |
 | WhatsApp user outside the 24h window | Sent as the approved `reminder_fire` / `weekly_digest` template (see [channels.md](channels.md)) |
 | `DONE` with several fired reminders | Applies to the most recent one only |

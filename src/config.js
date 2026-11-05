@@ -39,6 +39,9 @@ const EnvSchema = z
     EMBEDDING_MODEL: z.string().default('Xenova/multilingual-e5-small'),
     MODEL_CACHE_DIR: z.string().default('.cache/models'),
 
+    // Background jobs (ADR-009): pg-boss durable queue in Postgres, or node-cron fallback
+    JOBS: z.enum(['pgboss', 'cron']).optional(),                  // default: pgboss (cron under NODE_ENV=test)
+
     // Proactive messages (Phase 4)
     PROACTIVE_DAILY_LIMIT: z.coerce.number().int().min(0).max(10).default(3),
 
