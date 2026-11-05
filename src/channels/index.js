@@ -12,6 +12,7 @@ const { getConfig } = require('../config');
 const { createChannelRegistry } = require('./registry');
 const { createWhatsAppAdapter } = require('./whatsapp');
 const { createTelegramAdapter } = require('./telegram');
+const { createWebAdapter } = require('./web');
 const { emit, KINDS } = require('../interactions');
 const { warn } = require('../logger');
 
@@ -27,6 +28,8 @@ registry.register(createWhatsAppAdapter({
   appSecret: config.APP_SECRET,
   allowUnsigned,
 }));
+
+registry.register(createWebAdapter({ prisma }));
 
 registry.register(createTelegramAdapter({
   botToken: config.TELEGRAM_BOT_TOKEN,

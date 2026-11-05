@@ -13,7 +13,7 @@ async function apiFetch(path: string, options?: RequestInit) {
   });
 
   if (res.status === 401) {
-    if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
+    if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login') && !window.location.pathname.startsWith('/invite')) {
       window.location.href = '/login';
     }
     throw new Error('Not authenticated');
@@ -33,6 +33,14 @@ export const api = {
     apiFetch('/auth/exchange', { method: 'POST', body: JSON.stringify({ token }) }),
   logout: () => apiFetch('/auth/logout', { method: 'POST', body: '{}' }),
   me: () => apiFetch('/auth/me'),
+  redeemInvite: (code: string) =>
+    apiFetch('/auth/invite', { method: 'POST', body: JSON.stringify({ code }) }),
+
+  // Web chat (ADR-018)
+  getChatMessages: (after?: string) =>
+    apiFetch(`/chat/messages${after ? `?after=${encodeURIComponent(after)}` : ''}`),
+  sendChatMessage: (text: string) =>
+    apiFetch('/chat/messages', { method: 'POST', body: JSON.stringify({ text }) }),
 
   // Analytics (Phase 5)
   getAnalyticsOverview: (days: number) => apiFetch(`/analytics/overview?days=${days}`),

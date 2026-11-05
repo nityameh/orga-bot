@@ -5,7 +5,7 @@
 // Docs: docs/modules/channels.md
 
 /**
- * @typedef {'whatsapp' | 'telegram'} ChannelName
+ * @typedef {'whatsapp' | 'telegram' | 'web'} ChannelName
  */
 
 /**
@@ -47,7 +47,7 @@
  * Port every channel implements.
  * @typedef {Object} ChannelAdapter
  * @property {ChannelName} name
- * @property {string} webhookPath           Express path for inbound webhooks
+ * @property {string | null} webhookPath    Express path for inbound webhooks; null = no webhook (web chat)
  * @property {ChannelCapabilities} capabilities
  * @property {() => boolean} isConfigured   false → messages are printed to the console (dev mode)
  * @property {(req: import('express').Request) => boolean} verifyRequest  Authenticity check for POSTs

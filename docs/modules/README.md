@@ -17,6 +17,7 @@ Each starts with a plain-language summary, then goes into detail.
 | Users (identity, channel linking) | [users.md](users.md) | `src/users/` |
 | Handlers (notes, tasks, reminders, queries, commands, account) | [handlers.md](handlers.md) | `src/handlers/` |
 | Evals (quality suite, real-message harvesting) | [evals.md](evals.md) | `evals/`, `src/evals/` |
+| Invites (invite-only onboarding) | [invites.md](invites.md) | `src/invites/` |
 | Jobs (pg-boss queue, retries, schedules) | [jobs.md](jobs.md) | `src/jobs/` |
 | Scheduler | [scheduler.md](scheduler.md) | `src/scheduler.js` |
 | Dashboard REST API | [api.md](api.md) | `src/api/` |

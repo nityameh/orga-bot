@@ -131,7 +131,7 @@ Sync job (incremental history id) → for each new email from a known person:
 
 | Area | Today | Target |
 |---|---|---|
-| Channels | ✅ Adapter registry: WhatsApp + Telegram (Phase 1) | Adapter registry: WhatsApp + Telegram |
+| Channels | ✅ Adapter registry: WhatsApp + Telegram + web chat; invite-only onboarding (Phase 5.6) | Same |
 | Brain | ✅ LangGraph state graph (Claude Opus 5.5 → Groq fallback), checkpointed approvals (Phase 5.5) | Same |
 | Dashboard auth | ✅ Magic link + sessions (Phase 0) | Magic link + sessions |
 | Jobs | ✅ pg-boss durable queue in-process: retries, dead-letter, schedules (Phase 5.5) | Separate worker when load grows |

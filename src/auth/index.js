@@ -25,6 +25,8 @@ const authHttp = createAuthHttp({
   findUser: (userId) => prisma.user.findUnique({ where: { id: userId } }),
   secureCookies: config.NODE_ENV === 'production',
   onLogin: (userId) => emit({ kind: KINDS.AUTH_LOGIN, userId, channel: 'dashboard' }),
+  // Lazy require: invites → channels → … must not load during auth's own import.
+  redeemInvite: (code) => require('../invites').redeemAndWelcome(code),
 });
 
 module.exports = { authService, authHttp, SESSION_COOKIE };

@@ -12,5 +12,6 @@ router.use('/reminders', require('./reminders'));
 router.use('/clients', require('./clients'));
 router.use('/query', require('./query'));
 router.use('/analytics', require('./analytics'));
+router.use('/chat', require('./chat'));
 
 module.exports = router;
