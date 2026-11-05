@@ -31,10 +31,10 @@ const { log, error } = require('../logger');
  */
 
 /**
- * @param {{ connectionString: string, schema?: string, timezone?: string, pollingIntervalSeconds?: number }} cfg
+ * @param {{ connectionString: string, schema?: string, timezone?: string, pollingIntervalSeconds?: number, max?: number }} cfg
  * @returns {JobQueue}
  */
-function createPgBossQueue({ connectionString, schema = 'pgboss', timezone = 'Asia/Kolkata', pollingIntervalSeconds = 2 }) {
+function createPgBossQueue({ connectionString, schema = 'pgboss', timezone = 'Asia/Kolkata', pollingIntervalSeconds = 2, max = 3 }) {
   /** @type {any} */
   let boss = null;
   const ready = () => {
@@ -46,7 +46,7 @@ function createPgBossQueue({ connectionString, schema = 'pgboss', timezone = 'As
     async start() {
       // pg-boss v12 is ESM-only; a dynamic import loads it from our CommonJS code.
       const { PgBoss } = await import('pg-boss');
-      boss = new PgBoss({ connectionString, schema });
+      boss = new PgBoss({ connectionString, schema, max }); // max: connection pool size
       boss.on('error', (/** @type {Error} */ err) => error('jobs.error', { err: err.message }));
       await boss.start();
       log('jobs.started', { schema });

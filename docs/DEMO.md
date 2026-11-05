@@ -5,10 +5,8 @@
 > through the dashboard. Total: ~5 minutes.
 
 ## Before the interview (one-time setup)
-1. **Deploy** API + dashboard (Railway): Postgres with **pgvector** (pgvector template),
-   `npx prisma migrate deploy` as the pre-deploy command, env vars from `.env.example`.
-   Minimum: `DATABASE_URL`, `DASHBOARD_URL`, `GROQ_API_KEY` (free) or `ANTHROPIC_API_KEY`.
-   Dashboard needs `API_ORIGIN` pointing at the API.
+1. **Deploy for free** following [DEPLOY.md](DEPLOY.md): Vercel (dashboard) + Render (API) +
+   Supabase (Postgres + pgvector) + a cron-job.org pinger, with a free Groq key.
 2. **Smoke test:** open `<api>/health/ready` → `{"status":"ready"}`.
 3. **Make yourself admin:** redeem an invite yourself, then `npm run admin:grant -- <yourUserId>`.
 4. **Warm up:** send one message so the embedding model and caches are loaded.

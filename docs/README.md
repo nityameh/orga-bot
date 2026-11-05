@@ -16,6 +16,7 @@ Start here. Each document has one job.
 | Explain the project in an interview (answers + evidence) | [INTERVIEW_GUIDE.md](INTERVIEW_GUIDE.md) |
 | See measured numbers | [METRICS.md](METRICS.md) |
 | Demo Orga live (invite link → web chat) | [DEMO.md](DEMO.md) |
+| Deploy for free (Vercel + Render + Supabase, or one VM) | [DEPLOY.md](DEPLOY.md) |
 
 ## Documentation rules
 1. **Code and docs change in the same PR.** A PR that changes behaviour without updating docs is incomplete.

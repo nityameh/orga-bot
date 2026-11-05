@@ -92,6 +92,19 @@ jobs:
           key: models-multilingual-e5-small-q8
       - run: node scripts/check-embedder.js
 
+  docker:
+    name: Deployment — Docker image builds, compose file valid
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build API image
+        run: docker build -t orga-api:ci .
+      - name: Validate docker-compose.yml
+        run: POSTGRES_PASSWORD=ci API_DOMAIN=example.sslip.io docker compose --env-file .env.example config --quiet
+      - name: Validate render.yaml is parseable YAML
+        run: python3 -c "import yaml,sys; yaml.safe_load(open('render.yaml'))"
+
   security:
     name: Security — dependency audit, secret scan
     runs-on: ubuntu-latest

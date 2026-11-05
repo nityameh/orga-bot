@@ -6,6 +6,15 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Commits follow
 
 ## [Unreleased]
 
+### Free deployment (ADR-019)
+#### Added
+- `render.yaml` Blueprint (free API), `Dockerfile` + `docker-compose.yml` + `Caddyfile` (free VM option), `docs/DEPLOY.md`
+- CI job building the Docker image and validating compose/Render files
+- `DB_POOL_MAX` to cap pg-boss and LangGraph connection pools for free poolers
+#### Changed
+- WhatsApp is optional in production (all-or-nothing), so Telegram + web chat deploys boot
+- Prisma CLI is a runtime dependency (migrations run at start); Node heap capped for 512 MB instances
+
 ### Phase 5.6: Demo-ready access
 #### Added
 - Web chat channel: third ChannelAdapter, browser chat with polling, approval/reminder buttons (ADR-018)

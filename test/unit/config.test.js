@@ -22,16 +22,21 @@ describe('parseConfig', () => {
     expect(() => parseConfig({})).toThrow(/DATABASE_URL/);
   });
 
-  it('requires WhatsApp secrets and https dashboard in production', () => {
+  it('requires all WhatsApp secrets once any is set, and an https dashboard, in production', () => {
     let message = '';
     try {
-      parseConfig({ ...base, NODE_ENV: 'production', DASHBOARD_URL: 'http://dash.example.com' });
+      parseConfig({ ...base, NODE_ENV: 'production', DASHBOARD_URL: 'http://dash.example.com', WHATSAPP_TOKEN: 't' });
     } catch (err) {
       message = err.message;
     }
-    for (const key of ['APP_SECRET', 'WHATSAPP_TOKEN', 'PHONE_NUMBER_ID', 'WEBHOOK_VERIFY_TOKEN', 'DASHBOARD_URL']) {
+    for (const key of ['APP_SECRET', 'PHONE_NUMBER_ID', 'WEBHOOK_VERIFY_TOKEN', 'DASHBOARD_URL']) {
       expect(message).toContain(key);
     }
+  });
+
+  it('allows a production deploy without WhatsApp (Telegram + web chat only)', () => {
+    const c = parseConfig({ ...base, NODE_ENV: 'production', DASHBOARD_URL: 'https://orga.vercel.app' });
+    expect(c.WHATSAPP_TOKEN).toBeUndefined();
   });
 
   it('accepts a complete production config', () => {
