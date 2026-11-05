@@ -5,7 +5,7 @@
 
 | Metric | Value | Measured | How |
 |---|---|---|---|
-| Automated tests | 155 unit tests + 8 integration suites (real Postgres) in CI | 2026-11-05 (Phase 2) | `npm test` |
+| Automated tests | 170 unit tests + 9 integration suites (real Postgres + pgvector + pg-boss) in CI | 2026-11-05 (Phase 2) | `npm test` |
 | CI checks per PR | lint, typecheck, migrations, schema drift, tests + coverage gates, dashboard build, npm audit, gitleaks, CodeQL, commitlint, evals | 2026-11-05 | `.github/workflows/` |
 | Embedding model check (real model, CI) | related 0.83 · Hinglish 0.81 · unrelated 0.73 (cosine, 384 dims) | 2026-11-05 | `npm run embeddings:check` |
 | Agent eval cases | 32 across 10 suites (incl. follow-ups, Hinglish times, prompt injection) | 2026-11-05 | `evals/agent/cases.json` |

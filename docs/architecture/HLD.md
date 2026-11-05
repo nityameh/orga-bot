@@ -132,9 +132,9 @@ Sync job (incremental history id) → for each new email from a known person:
 | Area | Today | Target |
 |---|---|---|
 | Channels | ✅ Adapter registry: WhatsApp + Telegram (Phase 1) | Adapter registry: WhatsApp + Telegram |
-| Brain | ✅ Tool-use agent loop (Claude Opus 5.5 / Groq), classifier kept as fallback (Phase 2) | Tool-use agent loop (Claude + Groq) |
+| Brain | ✅ LangGraph state graph (Claude Opus 5.5 → Groq fallback), checkpointed approvals (Phase 5.5) | Same |
 | Dashboard auth | ✅ Magic link + sessions (Phase 0) | Magic link + sessions |
-| Jobs | ✅ node-cron in one process, double-fire-safe; proactive rules engine (Phase 4) | pg-boss when scaled out (ADR-009 deferred) |
-| Retrieval | ✅ Hybrid: Postgres full-text + free local embeddings, RRF (Phase 4) | Same; pgvector at larger scale |
+| Jobs | ✅ pg-boss durable queue in-process: retries, dead-letter, schedules (Phase 5.5) | Separate worker when load grows |
+| Retrieval | ✅ Hybrid: Postgres full-text + pgvector HNSW (free local embeddings), RRF (Phase 5.5) | Same |
 | Language | JavaScript, TS-checked via JSDoc for new modules | TS-checked everywhere (ADR-007) |
 | Schema changes | ✅ Versioned migrations (Phase 0) | Versioned migrations |
