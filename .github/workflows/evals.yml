@@ -41,7 +41,7 @@ jobs:
       - name: Run eval suite
         if: env.ANTHROPIC_API_KEY != '' || env.GROQ_API_KEY != ''
         run: npm run evals
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always() && (env.ANTHROPIC_API_KEY != '' || env.GROQ_API_KEY != '')
         with:
           name: eval-report
