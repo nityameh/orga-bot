@@ -32,6 +32,7 @@ jobs:
           --health-interval 5s --health-timeout 5s --health-retries 10
     env:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/orga_test
+      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/orga_test
       NODE_ENV: test
     steps:
       - uses: actions/checkout@v4

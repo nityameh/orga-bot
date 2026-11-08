@@ -34,3 +34,4 @@ can see **what** was decided, **why**, and **what was rejected**.
 | [017](ADR-017-eval-set-from-real-messages.md) | Eval set from real, consented, anonymised, human-reviewed messages | Accepted |
 | [018](ADR-018-invites-and-web-chat.md) | Invite-only access and a web chat channel | Accepted |
 | [019](ADR-019-free-deployment.md) | Completely free deployment (Vercel + Render + Supabase, or one free VM) | Accepted |
+| [020](ADR-020-vercel-serverless.md) | Serverless mode: API on Vercel Functions with waitUntil, durable dedupe and a cron-driven tick | Accepted |

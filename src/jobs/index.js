@@ -8,13 +8,18 @@
 //   cleanup.daily     03:00 IST
 //   proactive.<rule>  each proactive rule on its own schedule
 // Falls back to node-cron when the queue is disabled (JOBS=cron, or tests).
+// On serverless (Vercel) none of this starts: /internal/tick runs the same work (ADR-020).
 // Docs: docs/modules/jobs.md
 
 const { getConfig } = require('../config');
 const { createPgBossQueue } = require('./queue');
 const { pollDueReminders, deliverReminder, sendWeeklyDigests, runDailyCleanup, startScheduler } = require('../scheduler');
 const { engine, rules, startProactiveJobs } = require('../proactive');
+const { createSchedules } = require('./schedules');
 const { log, error } = require('../logger');
+
+/** Every cron job, shared with the serverless tick (src/jobs/tick.js). */
+const schedules = createSchedules({ sendWeeklyDigests, runDailyCleanup, engine, rules });
 
 /** @type {import('./queue').QueueOptions} */
 const REMINDER_RETRY = {
@@ -36,14 +41,7 @@ async function registerJobs(queue) {
     // singletonKey: a reminder can only ever have one queued send job.
     await pollDueReminders((r) => queue.send('reminder.send', { reminderId: r.id }, { singletonKey: r.id }));
   });
-  await queue.every('digest.weekly', '0 18 * * 0', () => sendWeeklyDigests());
-  await queue.every('cleanup.daily', '0 3 * * *', () => runDailyCleanup());
-  for (const rule of rules) {
-    await queue.every(`proactive.${rule.name}`, rule.schedule, async () => {
-      const outcomes = await engine.run(rule);
-      if (Object.keys(outcomes).length) log('proactive.run', { rule: rule.name, ...outcomes });
-    });
-  }
+  for (const job of schedules) await queue.every(job.name, job.cron, async () => { await job.run(); });
 }
 
 /** @type {import('./queue').JobQueue | null} */
@@ -74,4 +72,4 @@ async function stopBackgroundJobs() {
   await queue?.stop();
 }
 
-module.exports = { startBackgroundJobs, stopBackgroundJobs, registerJobs, REMINDER_RETRY };
+module.exports = { startBackgroundJobs, stopBackgroundJobs, registerJobs, REMINDER_RETRY, schedules };

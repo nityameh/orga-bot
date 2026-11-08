@@ -199,6 +199,25 @@ is a third channel adapter: adding it touched no agent, tool or handler code.
 The invite redemption is a compare-and-set update, so a 2-use link can't
 admit 3 people even when they click at the same moment (there's a test).
 
+## 8c. "How do you run background jobs on serverless?" ([ADR-020](adr/ADR-020-vercel-serverless.md))
+**Say:** "The same code runs in two runtime modes. As a normal server, pg-boss
+runs schedules and retries in-process. On Vercel there's no process between
+requests, so I changed three assumptions:
+1. Work after the response goes through `waitUntil`, so the function isn't frozen mid-reply.
+2. Webhook dedupe moved from an in-memory Set to a primary-key insert, because
+   a retry can land on a different instance.
+3. Timers became a tick: an external cron calls `/internal/tick` every minute.
+   Each schedule runs once per occurrence through an atomic
+   `INSERT … ON CONFLICT … WHERE lastRunAt < occurrence`. Reminder retries are a
+   small state machine in the row: `pending → fired → retry → failed`, with
+   exponential backoff."
+
+**Why it's correct under overlap:** every step is a compare-and-set, so two
+overlapping ticks can't double-send. There's an integration test that fires 4
+claims at once and expects exactly 1 winner.
+**Trade-off to volunteer:** precision is ±1 minute and depends on the cron
+service. Semantic search is off on Vercel, where it falls back to full-text.
+
 ## 9. "What makes it different?"
 **Say:** "Agents like Instinct act for you but are a black box. Orga logs every
 event to an append-only log and builds an insights dashboard on it: who

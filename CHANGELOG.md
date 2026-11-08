@@ -6,6 +6,17 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Commits follow
 
 ## [Unreleased]
 
+### Serverless mode: everything on Vercel (ADR-020)
+#### Added
+- `api/index.js` + `vercel.json`: the API runs as a Vercel Function; production-only migrations at build (`scripts/vercel-build.js`)
+- `runInBackground()` with `waitUntil` for webhook and web-chat processing after the response
+- Durable webhook dedupe (`ProcessedMessage`), pruned daily
+- `/internal/tick` (Bearer `CRON_SECRET`): reminders with retry/backoff in the row (`attempts`, `nextAttemptAt`, `retry`/`failed`), schedules run once per occurrence via `JobRun`
+- One shared schedule list for pg-boss and the tick; IST cron matcher
+- `RUNTIME`, `CRON_SECRET`, `DIRECT_URL` (Supabase transaction pooler for queries, session pooler for migrations)
+#### Changed
+- `docs/DEPLOY.md`: all-Vercel is the recommended option; Render and the VM remain
+
 ### Free deployment (ADR-019)
 #### Added
 - `render.yaml` Blueprint (free API), `Dockerfile` + `docker-compose.yml` + `Caddyfile` (free VM option), `docs/DEPLOY.md`

@@ -103,6 +103,7 @@ phase until the previous exit criterion passes. Tick items in the PR that comple
 - [x] Invite-only onboarding: admin `/invite` + `npm run invite:create`, single/multi-use, expiry, revocation
 - [x] Demo runbook (`docs/DEMO.md`)
 - [x] Free deployment setup: Render Blueprint, Dockerfile + compose (free VM), Vercel dashboard, guide (ADR-019)
+- [x] Serverless mode: API on Vercel Functions, cron-driven tick, durable dedupe (ADR-020)
 - [ ] Deploy and run the demo end to end on a public URL
 
 ## Phase 6: Stretch (pick one or two)

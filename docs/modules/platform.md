@@ -1,6 +1,6 @@
 # Module: platform
 
-> **Path:** `src/index.js`, `src/app.js`, `src/config.js`, `src/db.js`, `src/logger.js`, `src/ratelimiter.js`, `src/ical.js`
+> **Path:** `src/index.js`, `api/index.js`, `src/app.js`, `src/config.js`, `src/runtime/`, `src/db.js`, `src/logger.js`, `src/ratelimiter.js`, `src/ical.js`
 > **Status:** Stable  ·  **Related ADRs:** [ADR-007](../adr/ADR-007-typescript-migration.md), [ADR-012](../adr/ADR-012-observability.md)
 
 ## Summary (read this first)
@@ -12,6 +12,9 @@ calendar-file generation. Nothing here knows about notes, tasks or chat.
 | File | What it contains |
 |---|---|
 | `index.js` | Process entry. Validates config (exits on error), starts HTTP server + scheduler, graceful shutdown on SIGTERM/SIGINT |
+| `../api/index.js` | Vercel entry (ADR-020): sets serverless defaults (`RUNTIME`, `DB_POOL_MAX=1`, `EMBEDDINGS=off`), validates config, exports the Express app. No `listen()`, no timers |
+| `runtime/background.js` | `runInBackground(task)`: post-response work; uses `waitUntil` on Vercel. `isServerless()` |
+| `runtime/dedupe.js` | `createDeduper({prisma})`: once-only claim of webhook message keys (local cache + `ProcessedMessage` primary key) |
 | `app.js` | `createApp()` builds the Express app: security headers, CORS, body parsing (raw body kept for webhook HMAC), cookies, routes, central error handler. No `listen()`, so tests can mount it |
 | `config.js` | Zod schema for environment variables. `getConfig()` (cached) / `parseConfig(env)` (pure, for tests). Production requires WhatsApp secrets and an https dashboard URL |
 | `db.js` | The single `PrismaClient` instance. Never create another |
@@ -26,6 +29,7 @@ calendar-file generation. Nothing here knows about notes, tasks or chat.
 | `POST /webhooks/telegram` | secret-token header | Telegram ([channels.md](channels.md)) |
 | `/api/v1/auth/*` | public | Login exchange, logout, me ([auth.md](auth.md)) |
 | `/api/v1/*` | session cookie | Dashboard API ([api.md](api.md)) |
+| `POST/GET /internal/tick` | Bearer `CRON_SECRET` (404 if unset) | Serverless scheduler ([jobs.md](jobs.md)) |
 | `GET /ical/:id.ics` | none (unguessable id) | Calendar download |
 | `GET /` | none | Liveness (Railway health check) |
 | `GET /health/ready` | none | Readiness: checks DB with `SELECT 1` |
@@ -33,6 +37,14 @@ calendar-file generation. Nothing here knows about notes, tasks or chat.
 ## Configuration
 See `.env.example` for every variable. Adding a variable means adding it to the
 schema in `config.js` and to `.env.example` in the same PR.
+
+## Runtime modes (ADR-020)
+| | `server` (Render, VM, local) | `serverless` (Vercel) |
+|---|---|---|
+| Entry | `src/index.js` → `listen()` | `api/index.js` exports the app |
+| After-response work | floating promise | `waitUntil` |
+| Scheduled jobs | pg-boss (or node-cron) in-process | `/internal/tick` from an external cron |
+| Chosen by | default | `RUNTIME=serverless`, or automatically when `VERCEL` is set |
 
 ## Edge Cases & Failure Modes
 | Situation | Behaviour |

@@ -1,7 +1,7 @@
 // src/pipeline.js
 // Channel-agnostic inbound pipeline. For every channel adapter it exposes
 // webhook routes that: verify authenticity → acknowledge immediately →
-// normalise → de-duplicate → rate limit → resolve user → classify → route.
+// normalise → de-duplicate (durable) → rate limit → resolve user → classify → route.
 // Each message runs inside its own context (traceId) for logs and Interactions.
 // Docs: docs/modules/messaging-pipeline.md
 
@@ -15,6 +15,9 @@ const { isRateLimited } = require('./ratelimiter');
 const { runWithContext, setContext } = require('./context');
 const { emit, KINDS } = require('./interactions');
 const { log, warn, error } = require('./logger');
+const prisma = require('./db');
+const { createDeduper } = require('./runtime/dedupe');
+const { runInBackground } = require('./runtime/background');
 
 const welcomeMessage = (name) => [
   `*Welcome${name ? `, ${name}` : ''}*`,
@@ -31,16 +34,9 @@ const welcomeMessage = (name) => [
 ].join('\n');
 
 // ─── De-duplication ────────────────────────────────────────────────────────
-// Channels retry webhooks; the same message id must be processed once.
-const DEDUPE_MAX = 1000;
-const seen = new Set();
-
-function isDuplicate(key) {
-  if (seen.has(key)) return true;
-  seen.add(key);
-  if (seen.size > DEDUPE_MAX) seen.delete(seen.values().next().value);
-  return false;
-}
+// Channels retry webhooks; the same message id must be processed once, even
+// when the retry lands on a different serverless instance (ADR-020).
+const deduper = createDeduper({ prisma });
 
 // ─── Processing ────────────────────────────────────────────────────────────
 
@@ -90,6 +86,23 @@ async function processInbound(message) {
 }
 
 /**
+ * Process one webhook message; on failure, tell the user instead of going silent.
+ * @param {import('./channels/types').ChannelAdapter} adapter
+ * @param {import('./channels/types').InboundMessage} message
+ */
+async function handleOne(adapter, message) {
+  try {
+    await adapter.acknowledge?.(message);
+    await processInbound(message);
+  } catch (err) {
+    error('message.fatal_error', { channel: message.channel, err: err.message });
+    await reply(message, "I'm having trouble on my side right now. Please try again in a minute.").catch(() => {
+      error('message.error_reply_failed', { channel: message.channel });
+    });
+  }
+}
+
+/**
  * Build Express routes for every registered channel.
  * @returns {express.Router}
  */
@@ -120,28 +133,21 @@ function createWebhookRouter() {
         return;
       }
 
-      for (const message of messages) {
-        if (isDuplicate(`${message.channel}:${message.id}`)) {
-          log('message.duplicate', { channel: message.channel });
-          continue;
-        }
-
-        runWithContext({ channel: message.channel }, async () => {
-          try {
-            await adapter.acknowledge?.(message);
-            await processInbound(message);
-          } catch (err) {
-            error('message.fatal_error', { channel: message.channel, err: err.message });
-            await reply(message, "I'm having trouble on my side right now. Please try again in a minute.").catch(() => {
-              error('message.error_reply_failed', { channel: message.channel });
-            });
+      // After the response: on Vercel, waitUntil keeps the function alive for this.
+      runInBackground(async () => {
+        for (const message of messages) {
+          // Scoped by chat: some ids (Telegram update_id) are only unique per bot.
+          if (message.id && !(await deduper.claim(`${message.channel}:${message.externalId}:${message.id}`))) {
+            log('message.duplicate', { channel: message.channel });
+            continue;
           }
-        });
-      }
+          await runWithContext({ channel: message.channel }, () => handleOne(adapter, message));
+        }
+      });
     });
   }
 
   return router;
 }
 
-module.exports = { createWebhookRouter, processInbound, isDuplicate };
+module.exports = { createWebhookRouter, processInbound, deduper };

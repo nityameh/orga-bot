@@ -10,6 +10,7 @@ const { z } = require('zod');
 const prisma = require('../db');
 const { processInbound } = require('../pipeline');
 const { runWithContext } = require('../context');
+const { runInBackground } = require('../runtime/background');
 const { reply } = require('../channels');
 const { error } = require('../logger');
 
@@ -55,17 +56,18 @@ router.post('/messages', async (req, res, next) => {
     const saved = await prisma.webMessage.create({ data: { userId, direction: 'in', text } });
 
     const message = { channel: 'web', externalId: userId, from: userId, id: `web_${crypto.randomUUID()}`, text, name: '' };
-    // Process asynchronously, exactly like a webhook: the browser polls for the reply.
-    runWithContext({ channel: 'web' }, async () => {
+    res.status(202).json({ id: saved.id, createdAt: saved.createdAt });
+
+    // Process after responding, exactly like a webhook: the browser polls for the reply.
+    // On Vercel, waitUntil keeps the function alive until this finishes (ADR-020).
+    runInBackground(() => runWithContext({ channel: 'web' }, async () => {
       try {
         await processInbound(message);
       } catch (err) {
         error('webchat.processing_failed', { err: err.message });
         await reply(message, "I'm having trouble on my side right now. Please try again in a minute.").catch(() => {});
       }
-    });
-
-    res.status(202).json({ id: saved.id, createdAt: saved.createdAt });
+    }));
   } catch (err) {
     next(err);
   }

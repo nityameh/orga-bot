@@ -27,6 +27,8 @@ services:
       # Secrets: set in the Render dashboard (sync: false = not stored in this file)
       - key: DATABASE_URL          # Supabase session pooler URI + ?connection_limit=5
         sync: false
+      - key: DIRECT_URL            # same session pooler URI (used by migrations)
+        sync: false
       - key: DASHBOARD_URL         # https://<your-app>.vercel.app
         sync: false
       - key: GROQ_API_KEY

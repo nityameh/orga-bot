@@ -26,9 +26,16 @@ const { cleanupExpired } = require('./pending');
  * @returns {Promise<number>} reminders claimed
  */
 async function pollDueReminders(dispatch) {
+  const now = new Date();
+  // Due = pending and past its time, or a failed delivery whose backoff has elapsed.
   const due = await prisma.reminder.findMany({
-    where: { status: 'pending', fireAt: { lte: new Date() } },
-    select: { id: true },
+    where: {
+      OR: [
+        { status: 'pending', fireAt: { lte: now } },
+        { status: 'retry', nextAttemptAt: { lte: now } },
+      ],
+    },
+    select: { id: true, status: true },
     take: 50,
   });
   let claimed = 0;
@@ -36,7 +43,7 @@ async function pollDueReminders(dispatch) {
     // Claim atomically: only the process whose conditional update succeeds
     // dispatches it, so overlapping ticks or two instances can't double-fire.
     const { count } = await prisma.reminder.updateMany({
-      where: { id: reminder.id, status: 'pending' },
+      where: { id: reminder.id, status: reminder.status },
       data:  { status: 'fired' },
     });
     if (count === 0) continue;
@@ -77,6 +84,48 @@ async function deliverNow(/** @type {{ id: string }} */ reminder) {
     await deliverReminder(reminder.id);
   } catch (err) {
     error('reminder.send_failed', { reminderId: reminder.id, err: err.message, retry: 'none (job queue disabled)' });
+  }
+}
+
+const RETRY_LIMIT = 5;
+const RETRY_BASE_MS = 30 * 1000;
+const RETRY_MAX_MS = 30 * 60 * 1000;
+
+/**
+ * Backoff before retry number `attempts` (1-based): 30s, 60s, 120s, ... capped at 30 min.
+ * @param {number} attempts
+ */
+function retryDelayMs(attempts) {
+  return Math.min(RETRY_BASE_MS * 2 ** (attempts - 1), RETRY_MAX_MS);
+}
+
+/**
+ * Delivery with durable retries but no job queue (serverless, ADR-020): on
+ * failure the reminder goes to status "retry" with a backoff stored in the row,
+ * and the next tick picks it up. After RETRY_LIMIT failures it is "failed".
+ * Same policy as the pg-boss queue (REMINDER_RETRY), kept in Postgres instead.
+ * @param {{ id: string }} reminder
+ */
+async function deliverWithRetry(reminder) {
+  try {
+    await deliverReminder(reminder.id);
+  } catch (err) {
+    const row = await prisma.reminder.update({
+      where: { id: reminder.id },
+      data: { attempts: { increment: 1 } },
+      select: { attempts: true },
+    });
+    const giveUp = row.attempts >= RETRY_LIMIT;
+    // Conditional: only if still "fired" — the user may have snoozed or rescheduled meanwhile.
+    await prisma.reminder.updateMany({
+      where: { id: reminder.id, status: 'fired' },
+      data: giveUp
+        ? { status: 'failed', nextAttemptAt: null }
+        : { status: 'retry', nextAttemptAt: new Date(Date.now() + retryDelayMs(row.attempts)) },
+    });
+    (giveUp ? error : warn)(giveUp ? 'reminder.failed_all_retries' : 'reminder.send_failed', {
+      reminderId: reminder.id, attempts: row.attempts, err: err.message,
+    });
   }
 }
 
@@ -233,6 +282,11 @@ async function runDailyCleanup() {
     where: { createdAt: { lt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } },
   });
   if (count) log('conversation.pruned', { count });
+  // Webhook de-dupe keys: channels stop retrying within hours, so 3 days is plenty.
+  const dedupe = await prisma.processedMessage.deleteMany({
+    where: { createdAt: { lt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000) } },
+  });
+  if (dedupe.count) log('dedupe.pruned', { count: dedupe.count });
 }
 
 function startDailyCleanup() {
@@ -248,4 +302,7 @@ function startScheduler() {
   log('scheduler.started');
 }
 
-module.exports = { startScheduler, handleReminderReply, sendWeeklyDigests, pollDueReminders, deliverReminder, runDailyCleanup };
+module.exports = {
+  startScheduler, handleReminderReply, sendWeeklyDigests, pollDueReminders, deliverReminder,
+  deliverWithRetry, retryDelayMs, RETRY_LIMIT, runDailyCleanup,
+};
