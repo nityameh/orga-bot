@@ -1,6 +1,11 @@
 // src/router.js
-// Routes classified intents to real handlers.
-// Intercepts action commands (done, delete, edit, cancel, undo) before classifier.
+// Two routing stages:
+//   routeCommand(user, message)        deterministic fast path — exact commands,
+//                                      numbered replies, confirmations. No LLM.
+//   routeIntent(user, intent, message) legacy intent switch, used when the agent
+//                                      is unavailable (no API key / budget spent).
+// Free text that isn't a command goes to the agent (src/agent) in pipeline.js.
+// Docs: docs/modules/messaging-pipeline.md
 
 const { handleNote }     = require('./handlers/note');
 const { handleTask, handleTaskDone } = require('./handlers/task');
@@ -8,128 +13,114 @@ const { handleReminder } = require('./handlers/reminder');
 const { handleToday, handleList, handleListTasks,
         handleSchedule, handleSearch, handleHelp, handleClient, handleExport, handlePrivacy,
         handleEditInit, handleEditComplete, handleUnknown } = require('./handlers/commands');
-const { classify } = require('./classifier');
+const { classify, keywordFallback } = require('./classifier');
 const { getPendingEdit, getPendingConfirm, savePendingEdit, clearPending } = require('./pending');
 const { handleReminderReply } = require('./scheduler');
 const { handleDelete, handleCancel, handleConfirmAction, handleUndo } = require('./handlers/delete');
 const { handleQuery } = require('./handlers/query');
-const { sendMessage } = require('./sender');
+const { handleInvite, handleImprove, handleQuiet, handleLogin, handleLink, handleDeleteMyDataRequest, handleDeleteMyDataConfirm } = require('./handlers/account');
+const { reply } = require('./channels');
+const { handleApprovalDecision } = require('./agent');
 const { log } = require('./logger');
 
-async function route(user, intent, message) {
-  log('intent.routing', { type: intent.type, phone: user.phone });
+const TASK_COMPLETION_PATTERNS = [
+  /^(completed?|finished?|done with|did)\s+(task\s+)?(\d+)/i,
+  /^(mark|marked)\s+(task\s+)?(\d+)\s+(as\s+)?(done|complete|finished)/i,
+  /^task\s+(\d+)\s+(is\s+)?(done|complete|finished)/i,
+];
 
+// Slash commands whose meaning is fixed; mapped to an intent without an LLM call.
+const SLASH_INTENTS = ['/today', '/notes', '/schedule', '/search', '/remind', '/task'];
+
+/**
+ * Handle messages whose meaning doesn't need a language model.
+ * @returns {Promise<boolean>} true if the message was handled
+ */
+async function routeCommand(user, message) {
   const text = message.text?.trim().toLowerCase() || '';
+  const intent = keywordFallback(message.text || '');
 
-  // ─── Pending confirmation check (bare number reply) ───────────────────
-  // If user has a pending confirm_delete/confirm_edit/confirm_cancel and sends a number
+  // ─── Pending confirmation (bare number reply) ─────────────────────────
   if (/^\d+$/.test(text)) {
     const confirm = await getPendingConfirm(user.id);
     if (confirm) {
       if (confirm.action === 'edit') {
-        // For edit confirmations, start the edit flow
         const num = parseInt(text);
         const item = confirm.items.find(i => i.pos === num);
         if (item) {
-          await savePendingEdit(user.id, item.id, item.summary);
           await clearPending(user.id);
-          // Re-save the edit pending (clearPending removed it)
           await savePendingEdit(user.id, item.id, item.summary);
-          await sendMessage(
-            message.from,
+          await reply(message,
             `*Editing*\n"${item.summary}"\n\nSend your updated text to replace it.\nReply CANCEL to leave it as is.`
           );
-          return;
+          return true;
         }
-        await sendMessage(message.from, `Invalid number. Pick from 1-${confirm.items.length}.`);
-        return;
+        await reply(message, `Invalid number. Pick from 1-${confirm.items.length}.`);
+        return true;
       }
 
-      const handled = await handleConfirmAction(user, message, confirm);
-      if (handled) return;
+      if (await handleConfirmAction(user, message, confirm)) return true;
     }
   }
 
-  // ─── Pending edit check (user sending replacement text) ───────────────
-  const pendingEdit = await getPendingEdit(user.id);
-  if (pendingEdit) {
-    const handled = await handleEditComplete(user, message, classify);
-    if (handled) return;
+  // ─── Pending edit (user sending replacement text) ─────────────────────
+  if (await getPendingEdit(user.id)) {
+    if (await handleEditComplete(user, message, classify)) return true;
   }
 
-  // ─── "done N" — mark task item complete ───────────────────────────────
-  if (/^done\s+\d+/.test(text)) {
-    const handled = await handleTaskDone(user, message);
-    if (handled) return;
-  }
+  // ─── "done N" and natural variants — tick off a task item ─────────────
+  if (/^done\s+\d+/.test(text) && await handleTaskDone(user, message)) return true;
 
-  // Natural language task completion variants
-  const taskCompletionPatterns = [
-    /^(completed?|finished?|done with|did)\s+(task\s+)?(\d+)/i,
-    /^(mark|marked)\s+(task\s+)?(\d+)\s+(as\s+)?(done|complete|finished)/i,
-    /^task\s+(\d+)\s+(is\s+)?(done|complete|finished)/i,
-  ];
-
-  for (const pattern of taskCompletionPatterns) {
+  for (const pattern of TASK_COMPLETION_PATTERNS) {
     const match = text.match(pattern);
-    if (match) {
-      const num = match[3] || match[1];
-      if (num && /^\d+$/.test(num)) {
-        message.text = `done ${num}`;
-        const handled = await handleTaskDone(user, message);
-        if (handled) return;
-      }
+    const num = match && (match[3] || match[1]);
+    if (num && /^\d+$/.test(num)) {
+      message.text = `done ${num}`;
+      if (await handleTaskDone(user, message)) return true;
     }
   }
 
-  // ─── SNOOZE / DONE reminder replies ───────────────────────────────────
-  if (text === 'done' || text === 'snooze') {
-    const handled = await handleReminderReply(user, message.text);
-    if (handled) return;
+  // ─── APPROVE / REJECT a parked external action (agent approvals) ──────
+  if (text === 'approve' || text === 'reject') {
+    const answer = await handleApprovalDecision(user, text === 'approve' ? 'APPROVE' : 'REJECT');
+    if (answer) { await reply(message, answer); return true; }
   }
 
-  // ─── "edit ..." — numbered or text-based ──────────────────────────────
-  if (/^edit\s+.+/i.test(text)) {
-    const handled = await handleEditInit(user, message);
-    if (handled) return;
+  // ─── DONE / SNOOZE replies to a fired reminder ────────────────────────
+  if ((text === 'done' || text === 'snooze') && await handleReminderReply(user, message)) return true;
+
+  // ─── edit / delete / cancel / undo ────────────────────────────────────
+  if (/^edit\s+.+/i.test(text) && await handleEditInit(user, message)) return true;
+  if (/^delete\s+.+/i.test(text) && text !== 'delete my data' && await handleDelete(user, message)) return true;
+  if (/^cancel\s+.+/i.test(text) && await handleCancel(user, message)) return true;
+  if (text === 'undo') { await handleUndo(user, message); return true; }
+
+  // ─── Fixed slash commands ─────────────────────────────────────────────
+  if (text.startsWith('/list'))                       { await handleListTasks(user, intent, message); return true; }
+  if (text === '/help' || text.startsWith('/help '))  { await handleHelp(user, intent, message); return true; }
+  if (text.startsWith('/client'))                     { await handleClient(user, message); return true; }
+  if (text === '/export')                             { await handleExport(user, intent, message); return true; }
+  if (text === '/privacy')                            { await handlePrivacy(user, intent, message); return true; }
+  if (SLASH_INTENTS.some((c) => text === c || text.startsWith(`${c} `))) {
+    await routeIntent(user, intent, message);
+    return true;
   }
 
-  // ─── "delete ..." — numbered or text-based ────────────────────────────
-  if (/^delete\s+.+/i.test(text) && text !== 'delete my data') {
-    const handled = await handleDelete(user, message);
-    if (handled) return;
-  }
+  // ─── Account: dashboard login, channel linking, data deletion ─────────
+  if (text === '/login') { await handleLogin(user, message); return true; }
+  if (text === '/quiet' || text.startsWith('/quiet ')) { await handleQuiet(user, message); return true; }
+  if (text === '/improve' || text.startsWith('/improve ')) { await handleImprove(user, message); return true; }
+  if (text === '/invite' || text.startsWith('/invite ')) { await handleInvite(user, message); return true; }
+  if (text === '/link' || text.startsWith('/link ')) { await handleLink(user, message); return true; }
+  if (text === 'delete my data') { await handleDeleteMyDataRequest(user, message); return true; }
+  if (text === 'confirm delete' && await handleDeleteMyDataConfirm(user, message)) return true;
 
-  // ─── "cancel ..." — numbered or text-based ────────────────────────────
-  if (/^cancel\s+.+/i.test(text)) {
-    const handled = await handleCancel(user, message);
-    if (handled) return;
-  }
+  return false;
+}
 
-  // ─── "undo" ───────────────────────────────────────────────────────────
-  if (text === 'undo') {
-    await handleUndo(user, message);
-    return;
-  }
-
-  // ─── Slash commands ───────────────────────────────────────────────────
-  if (text.startsWith('/list'))    return handleListTasks(user, intent, message);
-  if (text === '/help' || text.startsWith('/help ')) return handleHelp(user, intent, message);
-  if (text.startsWith('/client'))  return handleClient(user, message);
-  if (text === '/export')          return handleExport(user, intent, message);
-  if (text === '/privacy')         return handlePrivacy(user, intent, message);
-
-  // ─── DELETE MY DATA ───────────────────────────────────────────────────
-  if (text === 'delete my data') {
-    log('user.deletion_requested', { userId: user.id, phone: user.phone });
-    await sendMessage(
-      message.from,
-      '*Deletion request received*\n\nAll your data will be permanently deleted within 24 hours. We will confirm via this chat.'
-    );
-    return;
-  }
-
-  // ─── Intent-based routing ─────────────────────────────────────────────
+/** Legacy intent switch (fallback when the agent is unavailable). */
+async function routeIntent(user, intent, message) {
+  log('intent.routing', { type: intent.type, userId: user.id });
   switch (intent.type) {
     case 'NOTE':     return handleNote(user, intent, message);
     case 'TASK':     return handleTask(user, intent, message);
@@ -145,4 +136,10 @@ async function route(user, intent, message) {
   }
 }
 
-module.exports = { route };
+/** Commands first, then the classified intent. Kept for callers that already classified. */
+async function route(user, intent, message) {
+  if (await routeCommand(user, message)) return;
+  return routeIntent(user, intent, message);
+}
+
+module.exports = { route, routeCommand, routeIntent };

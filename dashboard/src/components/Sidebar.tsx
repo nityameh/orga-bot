@@ -2,21 +2,29 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { api } from '@/lib/api';
 
 const navItems = [
   { href: '/dashboard', label: 'Home', icon: '□' },
+  { href: '/dashboard/chat', label: 'Chat', icon: '✉' },
+  { href: '/dashboard/insights', label: 'Insights', icon: '◷' },
+  { href: '/dashboard/activity', label: 'Activity', icon: '≡' },
   { href: '/dashboard/notes', label: 'Notes', icon: '▤' },
   { href: '/dashboard/tasks', label: 'Tasks', icon: '☑' },
   { href: '/dashboard/reminders', label: 'Reminders', icon: '◔' },
   { href: '/dashboard/clients', label: 'Clients', icon: '◉' },
+  { href: '/dashboard/settings', label: 'Settings', icon: '⚙' },
 ];
 
 export default function Sidebar() {
   const pathname = usePathname();
 
-  const handleLogout = () => {
-    localStorage.removeItem('orga_phone');
-    window.location.href = '/login';
+  const handleLogout = async () => {
+    try {
+      await api.logout();
+    } finally {
+      window.location.href = '/login';
+    }
   };
 
   return (

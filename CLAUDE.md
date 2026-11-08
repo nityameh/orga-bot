@@ -4,9 +4,78 @@
 > Read it completely before doing anything. Every decision made
 > in this project is documented here. When in doubt, refer back.
 
+> **⚠️ PIVOT (Nov 2026):** Orga is now a personal AI agent (Instinct-style:
+> calendar, email, proactive, actions) on **WhatsApp + Telegram**, plus an
+> interaction-analytics dashboard. It is used by the owner, friends and
+> colleagues, and is built to industry standard as a portfolio project.
+>
+> **Sources of truth (these win over sections 1–14 below):**
+> - Scope and phases → [docs/ROADMAP.md](docs/ROADMAP.md)
+> - Architecture → [docs/architecture/HLD.md](docs/architecture/HLD.md)
+> - Decisions → [docs/adr/README.md](docs/adr/README.md)
+> - Doc map → [docs/README.md](docs/README.md)
+>
+> Sections 1, 7, 10, 11, 12 and 13 below describe v1 and are kept for history.
+> The code's classifier currently uses Groq Llama 3.3, not Haiku.
+
 ---
 
-## 1. What Is This Project
+## 0. Engineering Standards (mandatory for every change)
+
+These rules apply to all work, whether a human or an AI agent writes it.
+
+### 0.1 Design principles
+- **SOLID**, especially Open/Closed: a new channel, tool, LLM provider,
+  integration or proactive rule is added as a **new file registered in a
+  registry**, never by adding `if/switch` branches to existing code.
+- Depend on interfaces (`ChannelAdapter`, `LLMProvider`, `Tool`,
+  `EmbeddingProvider`), not on concrete implementations. Wire them in one composition root.
+- Patterns in use: Ports and Adapters (channels, integrations), Strategy (LLM and
+  embedding providers), Registry + Command (tools), Observer (event bus →
+  Interaction log), Repository (data access, always scoped by `userId`).
+- Follow the dependency rule in HLD §4: inner layers never import outer ones.
+- Prefer small pure functions; isolate side effects at the edges.
+
+### 0.2 Documentation (part of "done")
+- Every `src/` module has `docs/modules/<module>.md` from
+  `docs/templates/MODULE_DOC_TEMPLATE.md`, with a summary for humans first and detail after.
+- Every source file starts with a header comment: purpose, key exports, link to its module doc.
+- Public functions have JSDoc/TSDoc explaining *why* and any non-obvious edge cases.
+- Code and docs change in the **same PR**.
+
+### 0.3 Decision tracking and design
+- Any change to architecture, dependencies, data model, security or integrations
+  needs an **ADR** in `docs/adr/` (template in `docs/templates/`) before merge.
+  Never edit an accepted ADR's decision; supersede it with a new one.
+- `docs/architecture/HLD.md` is updated whenever components, stores, integrations or flows change.
+- `docs/LLD.md` is auto-generated (`npm run docs`). Never hand-edit it.
+- `docs/ROADMAP.md` checkboxes are ticked in the PR that completes them.
+
+### 0.4 Industry-standard practice
+- **Testing:** unit tests for logic; integration tests against real Postgres;
+  evals for agent behaviour (ADR-013). New code ≥ 70% coverage. Bug fix = regression test first.
+- **Security:** validate all external input with Zod; scope every query by
+  `userId`; no secrets, tokens or message bodies in logs; external-effect tools
+  need user approval; third-party text is untrusted data (ADR-010).
+- **Quality gates:** lint, typecheck, tests, evals (when relevant), `npm audit`,
+  and secret scan must pass in CI. No merging red builds.
+- **Git:** every piece of work happens on a new branch off `main` (`feat/…`, `fix/…`, `docs/…`, `chore/…`); never commit directly to `main`; merge via PR so every version is preserved; Conventional Commits
+  (`feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`); PRs with a description and test evidence.
+- **Schema:** versioned Prisma migrations only (ADR-008).
+- **Config:** 12-factor; env validated at startup; no hardcoded ids, models or URLs.
+- **Errors:** never swallow errors; log with `traceId`; return safe messages to users.
+
+### 0.5 AI-assisted development
+- Follow [docs/AI_WORKFLOW.md](docs/AI_WORKFLOW.md). Plan before multi-file changes; one concern per task.
+- Product prompts live in `prompts/` as versioned files and change only with an eval run.
+- AI agents should **proactively suggest** better prompts, practices, patterns or
+  cutting-edge AI techniques (evals, hybrid retrieval, memory, MCP, tracing,
+  model routing), and should flag when a request conflicts with these standards.
+- Think like the project's CTO: prefer ambitious but doable designs, and justify them in an ADR.
+
+---
+
+## 1. What Is This Project (v1 — superseded, see docs/ROADMAP.md)
 
 **Orga** is a WhatsApp-native productivity bot for Indian freelancers.
 
@@ -624,9 +693,11 @@ Phase 1 exit criteria: text "hello" to Orga from your phone → get a reply with
 
 ---
 
-## 13. Decisions Already Made — Do Not Revisit
+## 13. Decisions Already Made (v1 — superseded by docs/adr/)
 
-These decisions are final for MVP. Do not suggest alternatives.
+These were the v1 decisions. Still valid: Node.js, Prisma/Postgres, Railway,
+phone number = identity, soft delete on notes, # tag prefix. Replaced by the pivot:
+WhatsApp-only, one-shot classifier, no dashboard, no Redis → pg-boss.
 
 | Decision | Rationale |
 |---|---|

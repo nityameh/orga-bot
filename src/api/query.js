@@ -3,10 +3,15 @@
 const express = require('express');
 const router = express.Router();
 const { classify } = require('../classifier');
-const { handleQuery, retrieveContext } = require('../handlers/query');
+const { retrieveContext } = require('../handlers/query');
 const Groq = require('groq-sdk');
 
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+// Created lazily so the app can start without GROQ_API_KEY.
+let groq;
+function getGroq() {
+  if (!groq) groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+  return groq;
+}
 
 const ANSWER_PROMPT = `
 You are an assistant answering questions for a freelancer based on their saved notes, tasks, and reminders.
@@ -21,7 +26,7 @@ RULES:
 `.trim();
 
 // POST /api/v1/query
-router.post('/', async (req, res) => {
+router.post('/', async (req, res, next) => {
   try {
     const { question } = req.body;
     if (!question) return res.status(400).json({ error: 'question is required' });
@@ -41,7 +46,7 @@ router.post('/', async (req, res) => {
     const contextText = formatContextForApi(context);
 
     // Generate answer
-    const response = await groq.chat.completions.create({
+    const response = await getGroq().chat.completions.create({
       model: 'llama-3.3-70b-versatile',
       max_tokens: 300,
       temperature: 0.3,
@@ -60,7 +65,7 @@ router.post('/', async (req, res) => {
 
     res.json({ answer, sources, docsUsed: totalDocs });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 

@@ -7,7 +7,7 @@
 // What it auto-generates:
 //   - File tree with descriptions
 //   - Exported functions per file
-//   - API routes (from index.js)
+//   - API routes (from app.js, auth and api routers)
 //   - DB schema summary (from prisma/schema.prisma)
 //   - Environment variables (from .env.example or .env)
 
@@ -48,99 +48,73 @@ function getExports(filePath) {
   return exports.slice(0, 8); // fallback
 }
 
+// Every source file under src/, discovered at generation time so new modules
+// can never be silently missing from the LLD.
+function listSourceFiles(dir = SRC) {
+  const out = [];
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) out.push(...listSourceFiles(full));
+    else if (entry.name.endsWith('.js')) out.push(path.relative(ROOT, full).split(path.sep).join('/'));
+  }
+  return out.sort();
+}
+
+// Description = first header comment line that isn't the file path or a directive.
 function getFileDescription(relPath) {
-  const descriptions = {
-    'src/index.js':              'Express app entry — sets up routes, starts server, boots scheduler',
-    'src/webhook.js':            'Meta webhook handler — GET verify, POST receive + signature check',
-    'src/sender.js':             'sendMessage() / sendButtons() — wraps Meta send API',
-    'src/classifier.js':         'Groq LLaMA intent classifier — text → JSON intent + keyword fallback',
-    'src/router.js':             'Routes intent type to correct handler — intercepts done/snooze/DONE/SNOOZE',
-    'src/scheduler.js':          'Cron engine — polls reminders every 60s, weekly digest every Sunday 6pm IST',
-    'src/db.js':                 'Prisma client singleton — imported by all handlers',
-    'src/handlers/note.js':      'Save note to DB, free tier limit check, reply confirmation',
-    'src/handlers/task.js':      'Save task list, parse items, handle "done N" replies',
-    'src/handlers/reminder.js':  'Save reminder to DB, datetime validation, snooze/done helpers',
-    'src/handlers/commands.js':  '/today /notes /list /schedule /search — all DB queries',
-  };
-  return descriptions[relPath] || '';
+  const lines = readFile(path.join(ROOT, relPath)).split('\n').slice(0, 6);
+  for (const line of lines) {
+    const m = line.match(/^\/\/\s*(.+)$/);
+    if (!m) continue;
+    const text = m[1].trim();
+    if (text.startsWith('@ts-') || text.startsWith('eslint')) continue;
+    if (/^src\/\S+$/.test(text)) continue; // bare file path line
+    return text.replace(/^src\/\S+\s+[—-]\s+/, '');
+  }
+  return '';
 }
 
 // ─── Section builders ──────────────────────────────────────────────────────
 
 function buildFileTree() {
-  const files = [
-    'src/index.js',
-    'src/webhook.js',
-    'src/sender.js',
-    'src/classifier.js',
-    'src/router.js',
-    'src/scheduler.js',
-    'src/db.js',
-    'src/handlers/note.js',
-    'src/handlers/task.js',
-    'src/handlers/reminder.js',
-    'src/handlers/commands.js',
-    'prisma/schema.prisma',
-    '.env',
-    'package.json',
-  ];
-
-  const lines = ['```', 'orga-bot/'];
-  const seen  = new Set();
-
-  for (const f of files) {
-    const parts = f.split('/');
-    const dir   = parts.length > 1 ? parts[0] : null;
-
-    if (dir && !seen.has(dir)) {
-      lines.push(`├── ${dir}/`);
-      seen.add(dir);
-    }
-
-    const exists   = fs.existsSync(path.join(ROOT, f));
-    const prefix   = parts.length > 2 ? '│   │   ' : parts.length > 1 ? '│   ' : '├── ';
-    const filename = parts[parts.length - 1];
-    const desc     = getFileDescription(f);
-    const status   = exists ? '' : ' ← MISSING';
-    lines.push(`${prefix}├── ${filename}${status}${desc ? `    # ${desc}` : ''}`);
+  const lines = ['```', 'src/'];
+  for (const f of listSourceFiles()) {
+    const rel   = f.replace(/^src\//, '');
+    const depth = rel.split('/').length - 1;
+    const desc  = getFileDescription(f);
+    lines.push(`${'│   '.repeat(depth)}├── ${rel}${desc ? `    # ${desc}` : ''}`);
   }
-
   lines.push('```');
   return lines.join('\n');
 }
 
 function buildExportsTable() {
-  const files = [
-    ['src/index.js',             'App entry'],
-    ['src/webhook.js',           'Webhook'],
-    ['src/sender.js',            'Sender'],
-    ['src/classifier.js',        'Classifier'],
-    ['src/router.js',            'Router'],
-    ['src/scheduler.js',         'Scheduler'],
-    ['src/handlers/note.js',     'Note handler'],
-    ['src/handlers/task.js',     'Task handler'],
-    ['src/handlers/reminder.js', 'Reminder handler'],
-    ['src/handlers/commands.js', 'Commands handler'],
-  ];
-
   const rows = ['| File | Exported Functions |', '|---|---|'];
-
-  for (const [relPath, label] of files) {
-    const fullPath = path.join(ROOT, relPath);
-    const exports  = getExports(fullPath);
+  for (const relPath of listSourceFiles()) {
+    const exports = getExports(path.join(ROOT, relPath));
     rows.push(`| \`${relPath}\` | ${exports.map(e => `\`${e}()\``).join(', ') || '—'} |`);
   }
-
   return rows.join('\n');
 }
 
+// Routes declared on the app (src/app.js) plus the auth router and every router
+// mounted in src/api/index.js, prefixed with their mount paths.
 function buildApiRoutes() {
-  const indexSrc = readFile(path.join(SRC, 'index.js'));
-  const routes   = [];
+  const routes = [];
+  const ROUTE_RE = /(?:app|router)\.(get|post|put|delete)\s*\(\s*['"`]([^'"`]+)['"`]/g;
+  const collect = (src, prefix) => {
+    for (const m of src.matchAll(ROUTE_RE)) {
+      const p = prefix && m[2] === '/' ? prefix : `${prefix}${m[2]}`;
+      routes.push(`| \`${m[1].toUpperCase()}\` | \`${p}\` |`);
+    }
+  };
 
-  const matches = indexSrc.matchAll(/app\.(get|post|put|delete)\s*\(\s*['"`]([^'"`]+)['"`]/g);
-  for (const m of matches) {
-    routes.push(`| \`${m[1].toUpperCase()}\` | \`${m[2]}\` |`);
+  collect(readFile(path.join(SRC, 'app.js')), '');
+  collect(readFile(path.join(SRC, 'auth', 'http.js')), '/api/v1/auth');
+
+  const apiIndex = readFile(path.join(SRC, 'api', 'index.js'));
+  for (const m of apiIndex.matchAll(/router\.use\(\s*['"`]([^'"`]+)['"`]\s*,\s*require\(['"`]\.\/(\w+)['"`]\)/g)) {
+    collect(readFile(path.join(SRC, 'api', `${m[2]}.js`)), `/api/v1${m[1]}`);
   }
 
   return ['| Method | Path |', '|---|---|', ...routes].join('\n');
@@ -158,7 +132,7 @@ function buildDbSchema() {
     const body   = m[2];
     const fields = [];
 
-    const fieldMatches = body.matchAll(/^\s+(\w+)\s+(\w+[\[\]?]*)/gm);
+    const fieldMatches = body.matchAll(/^\s+(\w+)\s+(\w+[[\]?]*)/gm);
     for (const f of fieldMatches) {
       if (!f[1].startsWith('@') && !f[1].startsWith('//')) {
         fields.push(`\`${f[1]}\` ${f[2]}`);

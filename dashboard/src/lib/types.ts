@@ -55,3 +55,51 @@ export interface Client {
   taskCount: number;
   reminderCount: number;
 }
+
+// ─── Analytics (Phase 5) ─────────────────────────────────────────────────
+
+export interface Overview {
+  days: number;
+  series: { date: string; messages: number; actions: number }[];
+  heatmap: number[][];
+  reminders: { done: number; missed: number; upcoming: number; completionRate: number | null };
+  agent: {
+    turns: number;
+    latencyMs: { p50: number | null; p95: number | null };
+    cacheHitRate: number | null;
+    costUSD: { total: number; perTurn: number | null };
+    toolUse: Record<string, number>;
+  };
+  approvals: { requested: number; granted: number; rejected: number };
+  nudges: { sent: number; byRule: Record<string, number> };
+  messages: number;
+}
+
+export interface PersonInsight {
+  person: string;
+  interactions: number;
+  lastInteraction: string;
+  daysSinceLast: number;
+  openTasks: number;
+  goneQuiet: boolean;
+}
+
+export interface TimelineItem {
+  id: string;
+  kind: string;
+  channel: string | null;
+  person: string | null;
+  summary: string | null;
+  traceId: string | null;
+  costMicros: number | null;
+  createdAt: string;
+  details?: Record<string, unknown>;
+}
+
+export interface WebMessage {
+  id: string;
+  direction: 'in' | 'out';
+  text: string;
+  buttons: { id: string; title: string }[] | null;
+  createdAt: string;
+}

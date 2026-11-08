@@ -1,0 +1,12 @@
+# Files never uploaded to Vercel by `vercel deploy` (ADR-020).
+.env
+.env.*
+!.env.example
+node_modules
+coverage
+.cache
+evals/results
+resume.tex
+*.log
+dashboard/node_modules
+dashboard/.next

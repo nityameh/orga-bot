@@ -1,37 +1,53 @@
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  directUrl  = env("DIRECT_URL") // migrations bypass the transaction pooler (ADR-020)
+  extensions = [vector] // pgvector: vector similarity search (ADR-016)
 }
 
 model User {
-  id        String     @id @default(cuid())
-  phone     String     @unique           // WhatsApp number e.g. "919876543210"
-  tier      String     @default("free")  // "free" | "pro" | "team"
-  lang      String     @default("en")    // "en" | "hi"
-  createdAt DateTime   @default(now())
+  id             String                @id @default(cuid())
+  phone          String?               @unique // WhatsApp number e.g. "919876543210"; null for Telegram-only users
+  tier           String                @default("free") // "free" | "pro" | "team"
+  lang           String                @default("en") // "en" | "hi"
+  proactive      Boolean               @default(true) // proactive nudges on/off (/quiet)
+  evalOptIn      Boolean               @default(false) // consent to anonymised eval harvesting (/improve), ADR-017
+  role           String                @default("user") // "user" | "admin" (admins can create invites)
+  createdAt      DateTime              @default(now())
   notes          Note[]
   tasks          Task[]
   reminders      Reminder[]
   pendingActions PendingAction[]
+  loginTokens    LoginToken[]
+  sessions       Session[]
+  identities     ChannelIdentity[]
+  interactions   Interaction[]
+  linkCodes      LinkCode[]
+  conversation   ConversationMessage[]
+  integrations   Integration[]
+  embeddings     Embedding[]
+  webMessages    WebMessage[]
+  invitesCreated Invite[]              @relation("InviteCreator")
 }
 
 model Note {
-  id        String    @id @default(cuid())
-  userId    String
-  title     String                        // clean summary from Claude
-  body      String?                       // full original text
-  tags      String[]                      // ["#acme", "#design", "#work"]
-  client     String?                       // extracted client name
-  project    String?                       // extracted project name
-  pinned     Boolean   @default(false)     // user can pin important notes
-  archivedAt DateTime?                     // archived notes hidden from default view
+  id         String    @id @default(cuid())
+  userId     String
+  title      String // clean summary from Claude
+  body       String? // full original text
+  tags       String[] // ["#acme", "#design", "#work"]
+  client     String? // extracted client name
+  project    String? // extracted project name
+  pinned     Boolean   @default(false) // user can pin important notes
+  archivedAt DateTime? // archived notes hidden from default view
   createdAt  DateTime  @default(now())
-  deletedAt  DateTime?                     // soft delete — recoverable for 30 days
-  user       User      @relation(fields: [userId], references: [id])
+  deletedAt  DateTime? // soft delete — recoverable for 30 days
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt])
   @@index([userId, tags])
@@ -41,37 +57,215 @@ model Note {
 model Task {
   id        String   @id @default(cuid())
   userId    String
-  title     String                        // task list name
-  items     Json                          // [{ id, text, done, order }]
+  title     String // task list name
+  items     Json // [{ id, text, done, order }]
   tags      String[]
   client    String?
   createdAt DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id])
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt])
 }
 
 model Reminder {
-  id          String    @id @default(cuid())
-  userId      String
-  title       String
-  fireAt      DateTime                    // when to send the WA message
-  status      String    @default("pending") // "pending" | "fired" | "done" | "snoozed"
-  snoozeUntil DateTime?
-  createdAt   DateTime  @default(now())
-  user        User      @relation(fields: [userId], references: [id])
+  id            String    @id @default(cuid())
+  userId        String
+  title         String
+  fireAt        DateTime // when to send the WA message
+  status        String    @default("pending") // "pending" | "fired" | "retry" | "done" | "snoozed" | "failed"
+  attempts      Int       @default(0) // failed delivery attempts (serverless retry with backoff, ADR-020)
+  nextAttemptAt DateTime? // when status = "retry": earliest next delivery attempt
+  snoozeUntil   DateTime?
+  createdAt     DateTime  @default(now())
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([status, fireAt])              // critical — used by cron job every 60s
+  @@index([status, fireAt]) // critical — used by cron job every 60s
 }
 
 model PendingAction {
   id        String   @id @default(cuid())
   userId    String
-  type      String   // "note_list" | "task_list" | "reminder_list" | "edit_note"
-  items     Json     // [{ pos: 1, id: "cuid", summary: "title" }, ...]
+  type      String // "note_list" | "task_list" | "reminder_list" | "edit_note"
+  items     Json // [{ pos: 1, id: "cuid", summary: "title" }, ...]
   expiresAt DateTime // now + 10 minutes
   createdAt DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id])
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, expiresAt])
+}
+
+// Dashboard auth — see docs/adr/ADR-006-dashboard-authentication.md
+// One-time magic-link token sent over the user's chat. Only the SHA-256 hash is stored.
+model LoginToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+// Server-side dashboard session. The cookie holds a random id; only its hash is stored.
+model Session {
+  id         String    @id @default(cuid())
+  userId     String
+  tokenHash  String    @unique
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  lastSeenAt DateTime  @default(now())
+  userAgent  String?
+  createdAt  DateTime  @default(now())
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// One row per chat account that reaches Orga (ADR-003). A user can have several
+// (WhatsApp + Telegram) after linking. lastInboundAt drives channel choice and
+// the WhatsApp 24-hour free-form window.
+model ChannelIdentity {
+  id            String    @id @default(cuid())
+  userId        String
+  channel       String // "whatsapp" | "telegram"
+  externalId    String // phone number or Telegram chat id
+  displayName   String?
+  lastInboundAt DateTime?
+  createdAt     DateTime  @default(now())
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([channel, externalId])
+  @@index([userId])
+}
+
+// Short-lived code for linking another channel to an existing account.
+model LinkCode {
+  id        String   @id @default(cuid())
+  userId    String
+  codeHash  String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// Append-only event log: the backbone for analytics, audit and proactive
+// features (ADR-005). Kinds are listed in src/interactions/kinds.js.
+model Interaction {
+  id         String   @id @default(cuid())
+  userId     String
+  kind       String
+  channel    String?
+  person     String? // client / person the event concerns
+  summary    String?
+  payload    Json?
+  traceId    String?
+  tokensIn   Int?
+  tokensOut  Int?
+  costMicros Int? // LLM cost in millionths of a USD
+  createdAt  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([userId, kind, createdAt])
+  @@index([userId, person, createdAt])
+}
+
+// Short-term conversation memory for the agent (ADR-004): the last few turns
+// as plain text so follow-ups like "make it 5pm instead" work. Pruned after
+// 7 days by the cleanup job; deleted with the user.
+model ConversationMessage {
+  id        String   @id @default(cuid())
+  userId    String
+  role      String // "user" | "assistant"
+  content   String
+  traceId   String? // links the message to its agent.turn Interaction
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+// Connected third-party account (ADR-010). Tokens are AES-256-GCM encrypted by
+// src/integrations/tokenVault.js and never leave the server or appear in logs.
+model Integration {
+  id              String   @id @default(cuid())
+  userId          String
+  provider        String // "google"
+  accountEmail    String?
+  accessTokenEnc  String
+  refreshTokenEnc String?
+  scopes          String[]
+  expiresAt       DateTime
+  status          String   @default("active") // "active" | "expired"
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, provider])
+}
+
+// Vector embeddings of user content for semantic search (ADR-011, ADR-016).
+// pgvector column with an HNSW index (cosine distance) created in the migration;
+// Prisma can't model the index, so reads/writes go through $queryRaw.
+model Embedding {
+  id         String                      @id @default(cuid())
+  userId     String
+  sourceType String // "note" | "task"
+  sourceId   String
+  content    String // the text that was embedded (for debugging/re-ranking)
+  embedding  Unsupported("vector(384)")? // multilingual-e5-small dimensions
+  model      String // re-embed when the model changes
+  createdAt  DateTime                    @default(now())
+  user       User                        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([sourceType, sourceId])
+  @@index([userId, model])
+}
+
+// Invite-only access (ADR-018), Instinct-style: a link with a code creates an
+// account and a session. Only the SHA-256 of the code is stored.
+model Invite {
+  id          String    @id @default(cuid())
+  codeHash    String    @unique
+  label       String? // e.g. "Interview demo – Acme"
+  maxUses     Int       @default(1)
+  uses        Int       @default(0)
+  expiresAt   DateTime
+  revokedAt   DateTime?
+  createdById String?
+  createdAt   DateTime  @default(now())
+  createdBy   User?     @relation("InviteCreator", fields: [createdById], references: [id], onDelete: SetNull)
+}
+
+// Web chat channel (ADR-018): the browser polls this table for Orga's replies.
+model WebMessage {
+  id        String   @id @default(cuid())
+  userId    String
+  direction String // "in" (user) | "out" (Orga)
+  text      String
+  buttons   Json? // [{ id, title }] for approvals / reminders
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+// Webhook de-duplication that survives across serverless instances (ADR-020).
+// Key = "<channel>:<messageId>"; rows older than 2 days are pruned.
+model ProcessedMessage {
+  key       String   @id
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+// Last run of each scheduled job in serverless mode (ADR-020), so a missed
+// minute-tick still runs a due job once instead of skipping it.
+model JobRun {
+  name      String   @id
+  lastRunAt DateTime
 }

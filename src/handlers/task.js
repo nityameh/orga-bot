@@ -2,14 +2,15 @@
 // Saves a task list and handles marking items done.
 
 const prisma = require('../db');
-const { sendMessage } = require('../sender');
+const { reply } = require('../channels');
 const { log } = require('../logger');
+const { emit, KINDS } = require('../interactions');
 
 async function handleTask(user, intent, message) {
   const items = parseTaskItems(intent.body || message.text);
 
   if (items.length === 0) {
-    await sendMessage(message.from,
+    await reply(message,
       `*Tasks*\n\nCouldn't find any tasks. Try: "tasks: send invoice, review brief, call Ravi"`
     );
     return;
@@ -46,9 +47,9 @@ async function handleTask(user, intent, message) {
       });
 
       const pending = updatedItems.filter(i => !i.done).length;
-      const addedLines = newItems.map((item, i) => `${item.id}. ${item.text}`).join('\n');
+      const addedLines = newItems.map((item) => `${item.id}. ${item.text}`).join('\n');
 
-      const reply = [
+      const replyText = [
         `*Added to "${existing.title}"*`,
         ``,
         addedLines,
@@ -56,8 +57,9 @@ async function handleTask(user, intent, message) {
         `${pending} pending total`,
       ].join('\n');
 
-      await sendMessage(message.from, reply);
+      await reply(message, replyText);
       log('task.appended', { userId: user.id, taskId: existing.id, addedCount: items.length });
+      emit({ kind: KINDS.TASK_CREATED, userId: user.id, person: existing.client, summary: existing.title, payload: { taskId: existing.id, itemCount: items.length, appended: true } });
       return;
     }
 
@@ -78,7 +80,7 @@ async function handleTask(user, intent, message) {
 
   const itemLines = items.map((item, i) => `${i + 1}. ${item}`).join('\n');
 
-  const reply = [
+  const replyText = [
     `*Tasks saved (${items.length})*`,
     ``,
     itemLines,
@@ -86,8 +88,9 @@ async function handleTask(user, intent, message) {
     `Reply "done 1" to tick off`,
   ].join('\n');
 
-  await sendMessage(message.from, reply);
+  await reply(message, replyText);
   log('task.created', { userId: user.id, taskId: task.id, itemCount: items.length });
+  emit({ kind: KINDS.TASK_CREATED, userId: user.id, person: task.client, summary: task.title, payload: { taskId: task.id, itemCount: items.length } });
 }
 
 // Handle "done 1" or "done 2" replies
@@ -105,7 +108,7 @@ async function handleTaskDone(user, message) {
   });
 
   if (tasks.length === 0) {
-    await sendMessage(message.from, `*Tasks*\n\nNo task lists yet.`);
+    await reply(message, `*Tasks*\n\nNo task lists yet.`);
     return true;
   }
 
@@ -133,12 +136,12 @@ async function handleTaskDone(user, message) {
   }
 
   if (!item) {
-    await sendMessage(message.from, `Item ${itemNum} not found in your tasks. Try /list to check.`);
+    await reply(message, `Item ${itemNum} not found in your tasks. Try /list to check.`);
     return true;
   }
 
   if (item.done) {
-    await sendMessage(message.from, `"${item.text}" is already done.`);
+    await reply(message, `"${item.text}" is already done.`);
     return true;
   }
 
@@ -151,12 +154,13 @@ async function handleTaskDone(user, message) {
 
   const remaining = task.items.filter(i => !i.done).length;
 
-  const reply = remaining === 0
+  const replyText = remaining === 0
     ? `*Done* — all tasks in "${task.title}" completed.`
     : `*Done* — "${item.text}"\n${remaining} task${remaining > 1 ? 's' : ''} remaining in "${task.title}"`;
 
-  await sendMessage(message.from, reply);
+  await reply(message, replyText);
   log('task.item_done', { userId: user.id, taskId: task.id, itemId: itemNum });
+  emit({ kind: KINDS.TASK_ITEM_COMPLETED, userId: user.id, person: task.client, summary: item.text, payload: { taskId: task.id, itemId: itemNum } });
   return true;
 }
 
