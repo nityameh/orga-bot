@@ -5,11 +5,11 @@
 > through the dashboard. Total: ~5 minutes.
 
 ## Before the interview (one-time setup)
-1. **Deploy for free** following [DEPLOY.md](DEPLOY.md): Vercel (dashboard) + Render (API) +
-   Supabase (Postgres + pgvector) + a cron-job.org pinger, with a free Groq key.
+1. **Deploy for free** following [DEPLOY.md](DEPLOY.md): Vercel (API + dashboard) + Supabase
+   (Postgres + pgvector) + cron-job.org calling `/internal/tick`, with a free Groq key.
 2. **Smoke test:** open `<api>/health/ready` → `{"status":"ready"}`.
 3. **Make yourself admin:** redeem an invite yourself, then `npm run admin:grant -- <yourUserId>`.
-4. **Warm up:** send one message so the embedding model and caches are loaded.
+4. **Warm up:** send one message a few minutes before, so the function is warm (no cold start).
 5. **Check numbers:** `npm run metrics` and `npm run evals`, and put real figures in `docs/METRICS.md`.
 
 ## Right before the call

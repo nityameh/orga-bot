@@ -46,6 +46,13 @@ const EnvSchema = z
     // Background jobs (ADR-009): pg-boss durable queue in Postgres, or node-cron fallback
     JOBS: z.enum(['pgboss', 'cron']).optional(),                  // default: pgboss (cron under NODE_ENV=test)
 
+    // Runtime (ADR-020): 'server' = long-running process (Render, VM, local);
+    // 'serverless' = Vercel functions, where an external cron calls /internal/tick.
+    RUNTIME: z.enum(['server', 'serverless']).optional(),         // default: serverless when VERCEL is set
+    VERCEL: optionalString,                                        // set by Vercel itself
+    CRON_SECRET: z.string().min(16, 'must be at least 16 characters (openssl rand -hex 24)').optional()
+      .or(z.literal('').transform(() => undefined)),
+
     // Proactive messages (Phase 4)
     PROACTIVE_DAILY_LIMIT: z.coerce.number().int().min(0).max(10).default(3),
 
@@ -86,12 +93,24 @@ const EnvSchema = z
     if (env.TELEGRAM_BOT_TOKEN && !env.TELEGRAM_WEBHOOK_SECRET) {
       ctx.addIssue({ code: 'custom', path: ['TELEGRAM_WEBHOOK_SECRET'], message: 'required in production when TELEGRAM_BOT_TOKEN is set' });
     }
+    if (resolveRuntime(env) === 'serverless' && !env.CRON_SECRET) {
+      ctx.addIssue({ code: 'custom', path: ['CRON_SECRET'], message: 'required in production on serverless (reminders and scheduled jobs run via /internal/tick)' });
+    }
     if (env.DASHBOARD_URL.startsWith('http://')) {
       ctx.addIssue({ code: 'custom', path: ['DASHBOARD_URL'], message: 'must be https in production' });
     }
   });
 
 /** @typedef {z.infer<typeof EnvSchema>} Config */
+
+/**
+ * Which runtime we are on. Explicit RUNTIME wins; otherwise Vercel implies serverless.
+ * @param {{ RUNTIME?: 'server' | 'serverless', VERCEL?: string }} env
+ * @returns {'server' | 'serverless'}
+ */
+function resolveRuntime(env) {
+  return env.RUNTIME ?? (env.VERCEL ? 'serverless' : 'server');
+}
 
 /**
  * Parse and validate an environment object.
@@ -120,4 +139,4 @@ function getConfig() {
   return cached;
 }
 
-module.exports = { parseConfig, getConfig };
+module.exports = { parseConfig, getConfig, resolveRuntime };

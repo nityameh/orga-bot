@@ -23,7 +23,8 @@ on the same app. Channel details live in [channels.md](channels.md).
 POST <adapter.webhookPath> ─► adapter.verifyRequest   (invalid → 403)
                             ─► 200 immediately        (platforms retry slow webhooks)
                             ─► adapter.parseInbound → InboundMessage[]
-                            ─► dedupe "<channel>:<messageId>" (in-memory, last 1000)
+                            ─► runInBackground (waitUntil on Vercel, ADR-020)
+                            ─► dedupe "<channel>:<externalId>:<messageId>" (local cache, then ProcessedMessage PK)
                             ─► runWithContext({ traceId, channel })
                                   adapter.acknowledge (Telegram button spinner)
                                   rate limit "<channel>:<externalId>" (20/min)
@@ -42,7 +43,8 @@ The keyword fallback never returns `UNKNOWN`; it defaults to `NOTE` (save rather
 ## Known limitations (addressed by the roadmap)
 | Limitation | Fix |
 |---|---|
-| Dedupe and rate limits are in-memory (lost on restart, per instance) | Accepted at current scale (threat model) |
+| Rate limits are in-memory (per instance) | Accepted at current scale (threat model); dedupe is durable since ADR-020 |
+| Dedupe fails open if the database is unreachable | Deliberate: processing a retry twice is better than losing a message |
 
 ## Testing
 Classifier behaviour lives in `evals/` (calls the live LLM; `npm run evals:legacy`).

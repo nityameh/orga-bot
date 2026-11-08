@@ -61,7 +61,7 @@ describe('Telegram webhook', () => {
     const res = await fetch(`${baseUrl}/webhooks/telegram`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ update_id: 1, message: { text: 'hello', chat: { id: Number(TG_ID), type: 'private' }, from: { first_name: 'Tess' } } }),
+      body: JSON.stringify({ update_id: Date.now(), message: { text: 'hello', chat: { id: Number(TG_ID), type: 'private' }, from: { first_name: 'Tess' } } }),
     });
     expect(res.status).toBe(200);
     const userId = await waitFor(() => userFor('telegram', TG_ID));

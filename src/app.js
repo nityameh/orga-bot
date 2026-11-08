@@ -8,6 +8,7 @@ const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const { getConfig } = require('./config');
 const { createWebhookRouter } = require('./pipeline');
+const { createTickRouter, createRunClaimer } = require('./jobs/tick');
 const { authHttp } = require('./auth');
 const { createIntegrationsRouter, createOAuthCallbackRouter } = require('./integrations/http');
 const prisma = require('./db');
@@ -18,7 +19,7 @@ function createApp() {
   const config = getConfig();
   const app = express();
 
-  // Behind Railway's proxy: trust X-Forwarded-* so req.ip and secure cookies work.
+  // Behind a proxy (Vercel, Render): trust X-Forwarded-* so req.ip and secure cookies work.
   app.set('trust proxy', 1);
   app.disable('x-powered-by');
 
@@ -37,6 +38,16 @@ function createApp() {
     verify: (req, res, buf) => { req.rawBody = buf; },
   }));
   app.use(cookieParser());
+
+  // Serverless scheduler entry point, called every minute by an external cron (ADR-020).
+  app.use(createTickRouter({
+    secret: config.CRON_SECRET,
+    deps: () => {
+      const { pollDueReminders, deliverWithRetry } = require('./scheduler');
+      const { schedules } = require('./jobs');
+      return { pollDueReminders, deliverWithRetry, schedules, claimRun: createRunClaimer(prisma) };
+    },
+  }));
 
   // Chat channel webhooks: one route set per registered adapter (ADR-003).
   app.use(createWebhookRouter());

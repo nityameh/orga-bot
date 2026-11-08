@@ -28,7 +28,8 @@
     "evals:promote": "node scripts/promote-evals.js",
     "invite:create": "node scripts/create-invite.js",
     "admin:grant": "node scripts/make-admin.js",
-    "start:prod": "prisma migrate deploy && node --max-old-space-size=400 src/index.js"
+    "start:prod": "prisma migrate deploy && node --max-old-space-size=400 src/index.js",
+    "build:vercel": "node scripts/vercel-build.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.4.0",
@@ -37,6 +38,7 @@
     "@langchain/langgraph": "^1.7.0",
     "@langchain/langgraph-checkpoint-postgres": "^1.1.2",
     "@prisma/client": "^5.22.0",
+    "@vercel/functions": "^3.11.0",
     "axios": "^1.21.0",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",

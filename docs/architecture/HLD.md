@@ -134,7 +134,8 @@ Sync job (incremental history id) → for each new email from a known person:
 | Channels | ✅ Adapter registry: WhatsApp + Telegram + web chat; invite-only onboarding (Phase 5.6) | Same |
 | Brain | ✅ LangGraph state graph (Claude Opus 5.5 → Groq fallback), checkpointed approvals (Phase 5.5) | Same |
 | Dashboard auth | ✅ Magic link + sessions (Phase 0) | Magic link + sessions |
-| Jobs | ✅ pg-boss durable queue in-process: retries, dead-letter, schedules (Phase 5.5) | Separate worker when load grows |
+| Jobs | ✅ pg-boss durable queue in-process (server); on Vercel, a cron-driven `/internal/tick` with claims and retry state in Postgres (ADR-020) | Separate worker when load grows |
+| Hosting | ✅ $0: API + dashboard on Vercel, Postgres on Supabase; Render and a free VM also supported (ADR-019, ADR-020) | Same |
 | Retrieval | ✅ Hybrid: Postgres full-text + pgvector HNSW (free local embeddings), RRF (Phase 5.5) | Same |
 | Language | JavaScript, TS-checked via JSDoc for new modules | TS-checked everywhere (ADR-007) |
 | Schema changes | ✅ Versioned migrations (Phase 0) | Versioned migrations |
