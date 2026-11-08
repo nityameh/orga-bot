@@ -30,3 +30,11 @@ evals/review/
 
 # Vercel CLI project link
 .vercel
+
+# Production secrets for Vercel (see .env.vercel.example)
+.env.vercel
+
+.vercel
+.env*
+!.env.example
+!.env.vercel.example
