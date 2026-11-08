@@ -25,6 +25,17 @@ All:       Groq (free LLM key) · Telegram bot (free) · web chat + invites (no 
 
 ## Option A: all on Vercel + Supabase (recommended)
 
+> **Fast path with the Vercel CLI** (projects `orga-api` at the repo root and
+> `orga-dashboard` with root `dashboard` are already linked):
+> 1. `cp .env.vercel.example .env.vercel` and fill it in (steps 1–3 below explain each value).
+> 2. `npm run vercel:env` validates the file and pushes it to `orga-api` → Production, without printing values.
+> 3. `npx vercel deploy --prod` from the repo root deploys the API.
+> 4. Dashboard (run from the repo root; it uses `dashboard/vercel.json`):
+>    `VERCEL_ORG_ID=… VERCEL_PROJECT_ID=<from dashboard/.vercel/project.json> npx vercel deploy --prod --local-config dashboard/vercel.json`
+> 5. cron-job.org as in step 7.
+>
+> The web UI steps below do the same thing by hand.
+
 ### 1. Database: Supabase connection strings
 Open your Supabase project → **Connect** (top bar) → connection strings. You need
 two URLs with the same host and password:
