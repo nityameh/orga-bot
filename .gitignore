@@ -2,8 +2,6 @@ node_modules/
 .env
 .env.local
 
-# Prisma
-prisma/migrations/
 
 # Logs
 *.log
@@ -20,3 +18,23 @@ Thumbs.db
 
 # Personal files
 resume.tex
+
+# Eval run reports (summaries are tracked in evals/baseline.json and docs/METRICS.md)
+evals/reports/
+
+# Downloaded open-source ML models
+.cache/
+
+# Harvested eval candidates contain (anonymised) user messages — never commit before review
+evals/review/
+
+# Vercel CLI project link
+.vercel
+
+# Production secrets for Vercel (see .env.vercel.example)
+.env.vercel
+
+.vercel
+.env*
+!.env.example
+!.env.vercel.example

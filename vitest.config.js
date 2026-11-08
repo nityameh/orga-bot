@@ -1,13 +1,54 @@
 import { defineConfig } from 'vitest/config';
 
+// Two test layers (see docs/CONTRIBUTING.md → Testing):
+//   unit         — pure logic, no network, no database. Fast; runs everywhere.
+//   integration  — real Postgres (DATABASE_URL), real Express app.
+// LLM behaviour is NOT tested here; that is what evals/ is for (ADR-013).
 export default defineConfig({
   test: {
     globals: true,
-    testTimeout: 15000,
-    hookTimeout: 10000,
-    include: ['test/**/*.test.{js,mjs}'],
-    exclude: ['test/classifier.test.js'],
     setupFiles: ['./test/setup.js'],
     pool: 'vmThreads',
+    projects: [
+      {
+        extends: true,
+        test: { name: 'unit', include: ['test/unit/**/*.test.{js,mjs}'], testTimeout: 5000 },
+      },
+      {
+        extends: true,
+        test: {
+          name: 'integration',
+          include: ['test/integration/**/*.test.{js,mjs}'],
+          testTimeout: 15000,
+          hookTimeout: 15000,
+          fileParallelism: false, // shared database
+          // Real processes: ESM-only deps (pg-boss) don't load inside vmThreads' VM contexts.
+          pool: 'forks',
+        },
+      },
+    ],
+    coverage: {
+      provider: 'v8',
+      include: ['src/**/*.js'],
+      reporter: ['text-summary', 'lcov'],
+      // Ratchet: new modules held to a high bar; legacy code must not regress.
+      thresholds: {
+        // Branch % is lower than lines because V8 counts every `?.` / `||`
+        // fallback as a branch; defensive defaults are intentionally untested.
+        'src/auth/**': { lines: 90, functions: 90, branches: 65 },
+        'src/config.js': { lines: 90 },
+        'src/ratelimiter.js': { lines: 90 },
+        'src/channels/{whatsapp,telegram,registry}.js': { lines: 85, functions: 90 },
+        'src/interactions/**': { lines: 90, functions: 90 },
+        'src/context.js': { lines: 90 },
+        'src/agent/{agent,toolRegistry,time}.js': { lines: 90, functions: 90 },
+        'src/llm/{anthropicProvider,groqProvider,pricing}.js': { lines: 85 },
+        'src/integrations/{tokenVault,google/oauth,google/client}.js': { lines: 90, functions: 90 },
+        'src/memory/{ranking,service}.js': { lines: 85 },
+        'src/proactive/engine.js': { lines: 90, functions: 90 },
+        'src/llm/fallbackProvider.js': { lines: 90, functions: 90 },
+        'src/interactions/metrics.js': { lines: 90 },
+      },
+    },
   },
 });

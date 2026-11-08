@@ -38,20 +38,18 @@ cp .env.example .env
 # 4. Create local database
 psql -U postgres -c "CREATE DATABASE orga_dev;"
 
-# 5. Push schema to DB
-npm run db:push
+# 5. Apply migrations (creates all tables)
+npx prisma migrate deploy
 
-# 6. Start the server
+# 6. Activate git hooks (LLD regeneration, commit message lint)
+npm run hooks:setup
+
+# 7. Start the server
 npm run dev
 ```
 
-You should see:
-```
-Orga listening on port 3000
-Reminder poller started — checking every 60s
-Weekly digest scheduled — every Sunday 6:00 PM IST
-Scheduler running
-```
+You should see JSON log lines including `"event":"server.started"` and `"event":"scheduler.started"`.
+If an environment variable is missing or invalid, the process exits immediately and lists every problem.
 
 ### Verify it works
 ```bash
@@ -130,11 +128,22 @@ npm run dev
 node test/manual.js
 ```
 
-### Classifier test suite
+### Automated tests
 ```bash
-node test/classifier.test.js
-# Must pass 90%+ before any changes to classifier.js are merged
+npm run test:unit          # pure logic, no DB, < 1s
+npm run test:integration   # real Postgres + real Express app (needs DATABASE_URL, migrated)
+npm run test:coverage      # both, with coverage thresholds (what CI runs)
+npm run verify             # lint + typecheck + all tests: run before every push
 ```
+| Layer | Folder | Rule |
+|---|---|---|
+| Unit | `test/unit/` | No network, no DB. Use fakes from `test/fakes/` |
+| Integration | `test/integration/` | Real DB; each file creates and deletes its own users |
+| Evals | `evals/` | LLM behaviour; costs money; run with `npm run evals:legacy` (harness in Phase 2) |
+
+### Logging in to the dashboard locally
+Send `/login` through `node test/manual.js` (or the curl below with text `/login`);
+the link is printed in the dev console. Open it with the dashboard running on port 3001.
 
 ### Curl (for specific flow testing)
 ```bash
@@ -199,12 +208,13 @@ npx prisma studio
 ## 6. Adding a New Database Field
 
 1. Edit `prisma/schema.prisma`
-2. Run `npm run db:push` — applies changes to local DB
-3. Run `npm run db:gen` — regenerates the Prisma client
-4. Update the relevant handler to use the new field
-5. Run `node scripts/gen-lld.js` to update docs
+2. Run `npm run db:migrate -- --name describe_the_change`: creates a versioned migration in `prisma/migrations/` and applies it locally (ADR-008)
+3. Review the generated SQL, then commit it **with** the schema change
+4. Update the relevant code, tests and module doc
 
-**Never drop columns in production without a migration plan.**
+Production applies migrations with `npm run db:deploy` before the new code starts.
+**Destructive changes** (drop/rename column) use expand → migrate data → contract over separate deploys.
+Never use `prisma db push` on a shared database.
 
 ---
 
@@ -218,6 +228,11 @@ npx prisma studio
 | `PHONE_NUMBER_ID` | Meta Developer Portal → WhatsApp → API Setup | No |
 | `WEBHOOK_VERIFY_TOKEN` | You choose this string | No |
 | `APP_SECRET` | Meta App Settings → Basic | No (dev bypasses it) |
+| `DASHBOARD_URL` | Where the dashboard runs (`http://localhost:3001` locally) | No (has default) |
+| `LOGIN_TOKEN_TTL_MINUTES` / `SESSION_TTL_DAYS` | Auth lifetimes | No (10 / 30) |
+
+All variables are validated at startup by `src/config.js`. In production the
+WhatsApp variables and an `https` `DASHBOARD_URL` are mandatory.
 
 In `NODE_ENV=development` with no `APP_SECRET` or `WHATSAPP_TOKEN`:
 - Signature verification is skipped
@@ -230,13 +245,14 @@ In `NODE_ENV=development` with no `APP_SECRET` or `WHATSAPP_TOKEN`:
 ```bash
 npm run dev          # Start with nodemon (auto-restart)
 npm run start        # Production start
-npm run db:push      # Sync schema → DB (no migration file needed)
-npm run db:gen       # Regenerate Prisma client after schema change
+npm run verify       # lint + typecheck + tests (run before pushing)
+npm run db:migrate   # Create + apply a migration after a schema change
+npm run db:deploy    # Apply pending migrations (production / fresh DB)
+npm run db:gen       # Regenerate Prisma client
 npx prisma studio    # Visual DB browser at localhost:5555
 
-node test/classifier.test.js   # Run classifier accuracy tests
 node test/manual.js            # Interactive message tester
-node scripts/gen-lld.js        # Regenerate docs/LLD.md
+npm run docs                   # Regenerate docs/LLD.md
 ```
 
 ---
@@ -260,8 +276,9 @@ docs: update contributing guide
 
 ## 10. Before You Submit a PR
 
-- [ ] `node test/classifier.test.js` passes ≥ 90%
-- [ ] `node scripts/gen-lld.js` run — `docs/LLD.md` updated
+- [ ] `npm run verify` passes (CI runs the same checks plus security scans)
+- [ ] Work is on its own branch, never `main`; commits follow Conventional Commits
+- [ ] Docs updated per CLAUDE.md §0.2–0.3 (module doc, HLD, ADR, ROADMAP)
 - [ ] No hardcoded secrets anywhere in code
 - [ ] `sender.js` is the only file calling Meta API
 - [ ] `res.sendStatus(200)` still happens before any async work in webhook.js

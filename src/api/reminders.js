@@ -5,7 +5,7 @@ const router = express.Router();
 const prisma = require('../db');
 
 // POST /api/v1/reminders — create a reminder
-router.post('/', async (req, res) => {
+router.post('/', async (req, res, next) => {
   try {
     const { title, fireAt } = req.body;
     if (!title) return res.status(400).json({ error: 'title is required' });
@@ -26,12 +26,12 @@ router.post('/', async (req, res) => {
     });
     res.status(201).json(reminder);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
 // GET /api/v1/reminders
-router.get('/', async (req, res) => {
+router.get('/', async (req, res, next) => {
   try {
     const { status, page = 1, limit = 20 } = req.query;
 
@@ -50,12 +50,12 @@ router.get('/', async (req, res) => {
 
     res.json({ reminders, total, page: parseInt(page) });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
 // PUT /api/v1/reminders/:id
-router.put('/:id', async (req, res) => {
+router.put('/:id', async (req, res, next) => {
   try {
     const { title, fireAt, status } = req.body;
     const data = {};
@@ -63,23 +63,25 @@ router.put('/:id', async (req, res) => {
     if (fireAt !== undefined) data.fireAt = new Date(fireAt);
     if (status !== undefined) data.status = status;
 
-    const reminder = await prisma.reminder.update({
-      where: { id: req.params.id },
+    const { count } = await prisma.reminder.updateMany({
+      where: { id: req.params.id, userId: req.user.id },
       data,
     });
-    res.json(reminder);
+    if (count === 0) return res.status(404).json({ error: 'Reminder not found' });
+    res.json(await prisma.reminder.findUnique({ where: { id: req.params.id } }));
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
 // DELETE /api/v1/reminders/:id
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', async (req, res, next) => {
   try {
-    await prisma.reminder.delete({ where: { id: req.params.id } });
+    const { count } = await prisma.reminder.deleteMany({ where: { id: req.params.id, userId: req.user.id } });
+    if (count === 0) return res.status(404).json({ error: 'Reminder not found' });
     res.json({ ok: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 

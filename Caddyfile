@@ -1,0 +1,6 @@
+# Automatic HTTPS (Let's Encrypt) in front of the API — Telegram and Google
+# require https. A free hostname: <your-ip-with-dashes>.sslip.io
+{$API_DOMAIN} {
+	encode gzip
+	reverse_proxy api:3000
+}

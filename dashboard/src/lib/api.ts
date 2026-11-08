@@ -1,26 +1,19 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api/v1';
-
-function getPhone(): string {
-  if (typeof window === 'undefined') return '';
-  return localStorage.getItem('orga_phone') || '';
-}
+// Same-origin path: next.config.ts proxies /api/v1/* to the backend, so the
+// session cookie is first-party and never exposed to JavaScript (ADR-006).
+const API_URL = '/api/v1';
 
 async function apiFetch(path: string, options?: RequestInit) {
-  const phone = getPhone();
-  const separator = path.includes('?') ? '&' : '?';
-  const url = `${API_URL}${path}${phone ? `${separator}phone=${phone}` : ''}`;
-
-  const res = await fetch(url, {
+  const res = await fetch(`${API_URL}${path}`, {
     ...options,
+    credentials: 'same-origin',
     headers: {
       'Content-Type': 'application/json',
       ...options?.headers,
     },
   });
 
-  if (res.status === 401 || res.status === 404) {
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('orga_phone');
+  if (res.status === 401) {
+    if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login') && !window.location.pathname.startsWith('/invite')) {
       window.location.href = '/login';
     }
     throw new Error('Not authenticated');
@@ -35,6 +28,30 @@ async function apiFetch(path: string, options?: RequestInit) {
 }
 
 export const api = {
+  // Auth
+  exchangeLoginToken: (token: string) =>
+    apiFetch('/auth/exchange', { method: 'POST', body: JSON.stringify({ token }) }),
+  logout: () => apiFetch('/auth/logout', { method: 'POST', body: '{}' }),
+  me: () => apiFetch('/auth/me'),
+  redeemInvite: (code: string) =>
+    apiFetch('/auth/invite', { method: 'POST', body: JSON.stringify({ code }) }),
+
+  // Web chat (ADR-018)
+  getChatMessages: (after?: string) =>
+    apiFetch(`/chat/messages${after ? `?after=${encodeURIComponent(after)}` : ''}`),
+  sendChatMessage: (text: string) =>
+    apiFetch('/chat/messages', { method: 'POST', body: JSON.stringify({ text }) }),
+
+  // Analytics (Phase 5)
+  getAnalyticsOverview: (days: number) => apiFetch(`/analytics/overview?days=${days}`),
+  getAnalyticsPeople: () => apiFetch('/analytics/people'),
+  getTimeline: (params: Record<string, string>) => apiFetch(`/analytics/timeline?${new URLSearchParams(params)}`),
+
+  // Integrations
+  getIntegrations: () => apiFetch('/integrations'),
+  startGoogleConnect: () => apiFetch('/integrations/google/start', { method: 'POST', body: '{}' }),
+  disconnectGoogle: () => apiFetch('/integrations/google', { method: 'DELETE' }),
+
   // Notes
   createNote: (data: Record<string, unknown>) =>
     apiFetch('/notes', { method: 'POST', body: JSON.stringify(data) }),

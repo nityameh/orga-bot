@@ -1,0 +1,52 @@
+# Option B (ADR-019): everything on one free VM (e.g. Oracle Cloud Always Free ARM),
+# with full features: local embeddings + pgvector, no sleeping, automatic HTTPS.
+#   1. cp .env.example .env  and fill it in (DATABASE_URL is set below)
+#   2. API_DOMAIN=<vm-ip>.sslip.io docker compose up -d --build
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: orga
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_DB: orga
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U orga"]
+      interval: 5s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      args:
+        PRELOAD_MODEL: "true"
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://orga:${POSTGRES_PASSWORD}@db:5432/orga
+      DIRECT_URL: postgresql://orga:${POSTGRES_PASSWORD}@db:5432/orga
+      EMBEDDINGS: local
+      PORT: "3000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      API_DOMAIN: ${API_DOMAIN:?set API_DOMAIN, e.g. 1-2-3-4.sslip.io}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+    depends_on:
+      - api
+
+volumes:
+  pgdata:
+  caddy_data:
