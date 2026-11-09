@@ -37,7 +37,10 @@ if (missing.length) {
 // Cheap sanity checks that catch the common Supabase mix-ups before a failed deploy.
 const db = Object.fromEntries(vars);
 const problems = [];
-if (!/:6543\//.test(db.DATABASE_URL) || !/pgbouncer=true/.test(db.DATABASE_URL)) problems.push('DATABASE_URL should be the transaction pooler (port 6543) with ?pgbouncer=true&connection_limit=1');
+if (!/:6543\//.test(db.DATABASE_URL) || !/pgbouncer=true/.test(db.DATABASE_URL)) problems.push('DATABASE_URL should be the transaction pooler (port 6543) with ?pgbouncer=true&connection_limit=5&pool_timeout=20');
+// connection_limit=1 starves concurrent requests on Fluid compute (ADR-023).
+const limit = Number(new URL(db.DATABASE_URL).searchParams.get('connection_limit') ?? 0);
+if (limit > 0 && limit < 3) problems.push('DATABASE_URL connection_limit should be at least 3 (5 recommended): one Vercel instance serves concurrent requests');
 if (!/:5432\//.test(db.DIRECT_URL)) problems.push('DIRECT_URL should be the session pooler (port 5432)');
 if (db.CRON_SECRET.length < 16) problems.push('CRON_SECRET must be at least 16 characters');
 if (!db.DASHBOARD_URL.startsWith('https://') || db.DASHBOARD_URL.endsWith('/')) problems.push('DASHBOARD_URL must start with https:// and have no trailing slash');

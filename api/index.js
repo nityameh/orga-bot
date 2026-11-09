@@ -8,7 +8,7 @@
 
 // Serverless-safe defaults, unless set explicitly in the Vercel project:
 process.env.RUNTIME ??= 'serverless';
-process.env.DB_POOL_MAX ??= '1';     // many short-lived instances × a small free pooler
+process.env.DB_POOL_MAX ??= '3';     // Fluid compute runs concurrent requests per instance (ADR-023)
 process.env.EMBEDDINGS ??= 'off';    // the local model doesn't fit a function bundle; search uses full-text
 
 const { getConfig } = require('../src/config');
