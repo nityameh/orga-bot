@@ -71,6 +71,33 @@ function fromOpenAIMessage(message) {
   return blocks;
 }
 
+/**
+ * Extra request parameters per Groq model family. Reasoning models (gpt-oss)
+ * spend completion tokens on hidden reasoning before answering; low effort keeps
+ * chat replies fast and leaves room for the answer. Other models take none.
+ * @param {string} model
+ * @returns {Record<string, string>}
+ */
+function groqModelParams(model) {
+  return model.startsWith('openai/gpt-oss') ? { reasoning_effort: 'low' } : {};
+}
+
+/**
+ * Groq validates tool calls against the schema on its side and fails the whole
+ * request (400 tool_use_failed) on e.g. `person: ""` vs minLength 1. Drop
+ * `minLength` there: the tool registry still validates every call with Zod and
+ * returns a fixable error to the model instead of failing the turn.
+ * @param {any} schema
+ * @returns {any}
+ */
+function relaxForServerValidation(schema) {
+  if (Array.isArray(schema)) return schema.map(relaxForServerValidation);
+  if (!schema || typeof schema !== 'object') return schema;
+  return Object.fromEntries(Object.entries(schema)
+    .filter(([key]) => key !== 'minLength')
+    .map(([key, value]) => [key, relaxForServerValidation(value)]));
+}
+
 /** @param {string | null | undefined} reason */
 function normaliseFinish(reason) {
   if (reason === 'tool_calls') return 'tool_use';
@@ -96,10 +123,11 @@ function createGroqProvider({ apiKey, model, client }) {
     async complete({ system, dynamicSystem, messages, tools }) {
       const response = await groq.chat.completions.create(/** @type {any} */ ({
         model,
-        max_tokens: 1024,
+        ...groqModelParams(model),
+        max_tokens: 4096, // includes reasoning tokens on reasoning models
         temperature: 0,
         messages: toOpenAIMessages(dynamicSystem ? `${system}\n\n${dynamicSystem}` : system, messages),
-        tools: tools.map((t) => ({ type: 'function', function: { name: t.name, description: t.description, parameters: t.input_schema } })),
+        tools: tools.map((t) => ({ type: 'function', function: { name: t.name, description: t.description, parameters: relaxForServerValidation(t.input_schema) } })),
         tool_choice: 'auto',
       }));
 
@@ -119,4 +147,4 @@ function createGroqProvider({ apiKey, model, client }) {
   };
 }
 
-module.exports = { createGroqProvider, toOpenAIMessages, fromOpenAIMessage, normaliseFinish };
+module.exports = { createGroqProvider, toOpenAIMessages, fromOpenAIMessage, normaliseFinish, groqModelParams, relaxForServerValidation };

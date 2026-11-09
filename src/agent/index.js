@@ -31,7 +31,7 @@ const { getContext } = require('../context');
 
 const HISTORY_TURNS = 10;                    // messages of recent context
 const HISTORY_WINDOW_MS = 24 * 60 * 60 * 1000;
-const DEFAULT_MODELS = { anthropic: 'claude-opus-5-5', groq: 'llama-3.3-70b-versatile' };
+const DEFAULT_ANTHROPIC_MODEL = 'claude-opus-5-5';
 
 const tools = createToolRegistry([
   saveNote, searchNotes,
@@ -49,10 +49,10 @@ function selectProvider(config) {
   const want = config.AGENT_PROVIDER;
   if (want === 'off') return null;
   if ((want === 'anthropic' || want === 'auto') && config.ANTHROPIC_API_KEY) {
-    return { name: 'anthropic', apiKey: config.ANTHROPIC_API_KEY, model: config.AGENT_MODEL || DEFAULT_MODELS.anthropic };
+    return { name: 'anthropic', apiKey: config.ANTHROPIC_API_KEY, model: config.AGENT_MODEL || DEFAULT_ANTHROPIC_MODEL };
   }
   if ((want === 'groq' || want === 'auto') && config.GROQ_API_KEY) {
-    return { name: 'groq', apiKey: config.GROQ_API_KEY, model: config.AGENT_MODEL || DEFAULT_MODELS.groq };
+    return { name: 'groq', apiKey: config.GROQ_API_KEY, model: config.AGENT_MODEL || config.GROQ_MODEL };
   }
   return null;
 }
@@ -66,8 +66,15 @@ function selectProviderChain(config) {
   const primary = selectProvider(config);
   if (!primary) return [];
   const chain = [primary];
-  if (primary.name !== 'groq' && config.GROQ_API_KEY) chain.push({ name: 'groq', apiKey: config.GROQ_API_KEY, model: DEFAULT_MODELS.groq });
-  if (primary.name !== 'anthropic' && config.ANTHROPIC_API_KEY) chain.push({ name: 'anthropic', apiKey: config.ANTHROPIC_API_KEY, model: DEFAULT_MODELS.anthropic });
+  if (primary.name !== 'groq' && config.GROQ_API_KEY) chain.push({ name: 'groq', apiKey: config.GROQ_API_KEY, model: config.GROQ_MODEL });
+  // Groq rate limits (incl. the free tier's tokens per day) are per model, so
+  // extra Groq models add free capacity when the main one is exhausted (ADR-022).
+  if (config.GROQ_API_KEY) {
+    for (const model of config.GROQ_FALLBACK_MODELS ?? []) {
+      if (!chain.some((c) => c.name === 'groq' && c.model === model)) chain.push({ name: 'groq', apiKey: config.GROQ_API_KEY, model });
+    }
+  }
+  if (primary.name !== 'anthropic' && config.ANTHROPIC_API_KEY) chain.push({ name: 'anthropic', apiKey: config.ANTHROPIC_API_KEY, model: DEFAULT_ANTHROPIC_MODEL });
   return chain;
 }
 

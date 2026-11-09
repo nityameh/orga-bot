@@ -28,6 +28,18 @@ const EnvSchema = z
     TELEGRAM_BOT_TOKEN: optionalString,
     TELEGRAM_WEBHOOK_SECRET: optionalString,
 
+    // Onboarding (ADR-021). 'invite': an unknown chat becomes an account only by
+    // sending a valid invite code (or /link CODE). 'open': any chat gets an account
+    // (local development only; refused in production).
+    SIGNUP_MODE: z.enum(['invite', 'open']).default('invite'),
+    // Public handles for the invite page's "Continue on…" buttons (not secrets).
+    TELEGRAM_BOT_USERNAME: optionalString
+      .transform((v) => v?.replace(/^@/, ''))
+      .refine((v) => v === undefined || /^[A-Za-z0-9_]{5,32}$/.test(v), 'must be a Telegram bot username, e.g. OrgaAssistBot'),
+    WHATSAPP_NUMBER: optionalString
+      .transform((v) => v?.replace(/[^\d]/g, ''))
+      .refine((v) => v === undefined || /^\d{8,15}$/.test(v), 'must be the full number with country code, digits only, e.g. 919876543210'),
+
     // Google (Phase 3, ADR-010) — all three plus TOKEN_ENC_KEY enable the integration
     GOOGLE_CLIENT_ID: optionalString,
     GOOGLE_CLIENT_SECRET: optionalString,
@@ -61,6 +73,12 @@ const EnvSchema = z
     ANTHROPIC_API_KEY: optionalString,
     AGENT_PROVIDER: z.enum(['auto', 'anthropic', 'groq', 'off']).default('auto'),
     AGENT_MODEL: optionalString,           // default per provider (see src/agent/index.js)
+    // Groq model for the agent (unless AGENT_MODEL), the classifier and note Q&A.
+    // Providers retire models (llama-3.3-70b-versatile was removed in 2026), so it is config, not code.
+    GROQ_MODEL: z.string().trim().min(1).default('openai/gpt-oss-120b'),
+    // Tried in order when GROQ_MODEL fails or hits its limit (limits are per model). Comma-separated; "" = none.
+    GROQ_FALLBACK_MODELS: z.string().default('openai/gpt-oss-20b')
+      .transform((v) => v.split(',').map((s) => s.trim()).filter(Boolean)),
     AGENT_EFFORT: z.enum(['low', 'medium', 'high']).default('low'),
     AGENT_MAX_STEPS: z.coerce.number().int().min(1).max(12).default(6),
     AGENT_LLM_TIMEOUT_MS: z.coerce.number().int().min(2000).max(120_000).default(25_000), // per model call, then fail over
@@ -98,6 +116,10 @@ const EnvSchema = z
     }
     if (env.DASHBOARD_URL.startsWith('http://')) {
       ctx.addIssue({ code: 'custom', path: ['DASHBOARD_URL'], message: 'must be https in production' });
+    }
+    // Open signup lets anyone who finds the bot create an account and spend the LLM budget.
+    if (env.SIGNUP_MODE === 'open') {
+      ctx.addIssue({ code: 'custom', path: ['SIGNUP_MODE'], message: "'open' is for local development only; production is invite-only (ADR-021)" });
     }
   });
 
