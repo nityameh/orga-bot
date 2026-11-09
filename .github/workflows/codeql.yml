@@ -22,7 +22,7 @@ jobs:
       - uses: github/codeql-action/init@v3
         with:
           languages: javascript-typescript
-          queries: security-extended
+          config-file: ./.github/codeql/codeql-config.yml # queries + documented exclusions
       # Code scanning (the Security tab) needs GitHub Advanced Security on private
       # repos, so results aren't uploaded; this job fails on any finding instead.
       - uses: github/codeql-action/analyze@v3
