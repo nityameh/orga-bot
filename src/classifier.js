@@ -1,9 +1,11 @@
 // src/classifier.js
 // Takes raw message text → returns structured intent JSON.
-// Uses Groq (llama-3.3-70b-versatile) — free tier, fast, accurate.
+// Uses Groq (model from GROQ_MODEL) — free tier, fast, accurate.
 // Falls back to keyword matching if Groq API is unavailable.
 
 const Groq = require('groq-sdk');
+const { getConfig } = require('./config');
+const { groqModelParams } = require('./llm/groqProvider');
 const { log, warn, error } = require('./logger');
 
 // Created lazily so the app (and tests) can start without GROQ_API_KEY;
@@ -119,8 +121,9 @@ async function classify(text) {
 
   try {
     const response = await getClient().chat.completions.create({
-      model:      'llama-3.3-70b-versatile',
-      max_tokens: 300,
+      model: getConfig().GROQ_MODEL,
+      ...groqModelParams(getConfig().GROQ_MODEL),
+      max_tokens: 1024, // room for reasoning tokens on reasoning models
       messages: [
         { role: 'system',  content: buildSystemPrompt(nowIST) },
         { role: 'user',    content: text },

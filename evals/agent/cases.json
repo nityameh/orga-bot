@@ -709,6 +709,89 @@
           "create_reminder"
         ]
       }
+    },
+    {
+      "id": "general-explain",
+      "suite": "general",
+      "input": "what is the difference between a SIP and an FD? keep it simple",
+      "expect": {
+        "noTools": true,
+        "replyMatchesRegexAny": [
+          "(?i)fixed deposit|FD",
+          "(?i)SIP"
+        ]
+      }
+    },
+    {
+      "id": "general-draft-email",
+      "suite": "general",
+      "input": "write a polite email to a client asking them to clear an invoice that is 15 days overdue",
+      "expect": {
+        "noTools": true,
+        "replyMatchesRegexAny": [
+          "(?i)invoice"
+        ]
+      }
+    },
+    {
+      "id": "general-translate",
+      "suite": "general",
+      "input": "translate to Hindi: the meeting is moved to Monday",
+      "expect": {
+        "noTools": true,
+        "replyMatchesRegexAny": [
+          "[ऀ-ॿ]"
+        ]
+      }
+    },
+    {
+      "id": "general-hinglish",
+      "suite": "general",
+      "input": "bhai GST registration kab zaroori hota hai freelancers ke liye?",
+      "expect": {
+        "noTools": true,
+        "replyMatchesRegexAny": [
+          "(?i)20 ?lakh|threshold|turnover"
+        ]
+      }
+    },
+    {
+      "id": "general-no-live-data",
+      "suite": "general",
+      "input": "what is the Nifty at right now?",
+      "expect": {
+        "noTools": true,
+        "replyMatchesRegexAny": [
+          "(?i)live|real-time|real time|current|check|can't|cannot|don't have"
+        ]
+      }
+    },
+    {
+      "id": "general-then-offer",
+      "suite": "general",
+      "input": "how long should I wait before following up on an unpaid invoice?",
+      "expect": {
+        "forbiddenTools": [
+          "create_reminder",
+          "save_note",
+          "create_task_list"
+        ]
+      }
+    },
+    {
+      "id": "general-mixed",
+      "suite": "general",
+      "input": "explain what a retainer contract is, and remind me tomorrow at 10am to send one to Acme",
+      "expect": {
+        "tools": [
+          {
+            "name": "create_reminder"
+          }
+        ],
+        "replyMatchesRegexAny": [
+          "(?i)retainer"
+        ]
+      }
     }
   ]
 }

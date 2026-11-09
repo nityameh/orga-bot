@@ -4,7 +4,7 @@
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 const prisma = require('../../src/db');
-const { tools, selectProvider } = require('../../src/agent');
+const { tools, selectProvider, selectProviderChain } = require('../../src/agent');
 
 const NOW = new Date();
 const inHours = (h) => new Date(NOW.getTime() + h * 3600_000);
@@ -97,13 +97,21 @@ describe('reminders', () => {
 });
 
 describe('provider selection', () => {
-  const base = { AGENT_PROVIDER: 'auto' };
+  const base = { AGENT_PROVIDER: 'auto', GROQ_MODEL: 'openai/gpt-oss-120b' };
   it('prefers Anthropic, falls back to Groq, and can be turned off', () => {
     expect(selectProvider({ ...base, ANTHROPIC_API_KEY: 'a', GROQ_API_KEY: 'g' })).toMatchObject({ name: 'anthropic', model: 'claude-opus-5-5' });
-    expect(selectProvider({ ...base, GROQ_API_KEY: 'g' })).toMatchObject({ name: 'groq', model: 'llama-3.3-70b-versatile' });
+    expect(selectProvider({ ...base, GROQ_API_KEY: 'g' })).toMatchObject({ name: 'groq', model: 'openai/gpt-oss-120b' }); // from config, not code
     expect(selectProvider({ ...base, ANTHROPIC_API_KEY: 'a', AGENT_MODEL: 'claude-sonnet-5-5' })).toMatchObject({ model: 'claude-sonnet-5-5' });
     expect(selectProvider({ AGENT_PROVIDER: 'off', ANTHROPIC_API_KEY: 'a' })).toBeNull();
     expect(selectProvider(base)).toBeNull();
+  });
+
+  it('chains extra Groq models (per-model limits) before Anthropic, without duplicates', () => {
+    const fallbacks = ['openai/gpt-oss-20b', 'openai/gpt-oss-120b'];
+    expect(selectProviderChain({ ...base, GROQ_API_KEY: 'g', GROQ_FALLBACK_MODELS: fallbacks, ANTHROPIC_API_KEY: '' }).map((c) => c.model))
+      .toEqual(['openai/gpt-oss-120b', 'openai/gpt-oss-20b']);
+    expect(selectProviderChain({ ...base, GROQ_API_KEY: 'g', GROQ_FALLBACK_MODELS: fallbacks, ANTHROPIC_API_KEY: 'a' }).map((c) => `${c.name}:${c.model}`))
+      .toEqual(['anthropic:claude-opus-5-5', 'groq:openai/gpt-oss-120b', 'groq:openai/gpt-oss-20b']);
   });
 });
 

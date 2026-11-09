@@ -18,8 +18,10 @@ const SESSION_COOKIE = 'orga_session';
  * @param {(userId: string) => void} [deps.onLogin]  Hook for audit/analytics (keeps this module decoupled)
  * @param {(code: unknown) => Promise<{ ok: true, userId: string } | { ok: false, reason: string }>} [deps.redeemInvite]
  *   Invite redemption (src/invites), injected so auth doesn't depend on invites
+ * @param {() => { telegram: string | null, whatsapp: string | null }} [deps.inviteChannels]
+ *   Chat apps a new user can join from (public handles for deep links, ADR-021)
  */
-function createAuthHttp({ authService, findUser, secureCookies, onLogin, redeemInvite }) {
+function createAuthHttp({ authService, findUser, secureCookies, onLogin, redeemInvite, inviteChannels }) {
   const isExchangeLimited = createRateLimiter({ limit: 10, windowMs: 60 * 1000 });
   const isInviteLimited = createRateLimiter({ limit: 10, windowMs: 60 * 1000 });
 
@@ -96,6 +98,13 @@ function createAuthHttp({ authService, findUser, secureCookies, onLogin, redeemI
     } catch (err) {
       next(err);
     }
+  });
+
+  // Which "Continue on…" buttons the invite page shows (ADR-021). Public: these are
+  // the bot's username and the business number, never secrets or invite data.
+  router.get('/invite/channels', (req, res) => {
+    res.set('Cache-Control', 'public, max-age=300');
+    res.json(inviteChannels?.() ?? { telegram: null, whatsapp: null });
   });
 
   // Invite link → new account + session (ADR-018).

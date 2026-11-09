@@ -55,7 +55,7 @@ function createTelegramAdapter({ botToken, webhookSecret, allowUnsigned, httpPos
   return {
     name: 'telegram',
     webhookPath: '/webhooks/telegram',
-    capabilities: { maxButtons: 8, freeformWindowHours: null },
+    capabilities: { maxButtons: 8, freeformWindowHours: null, maxTextLength: 4096 },
 
     isConfigured: () => Boolean(botToken),
 

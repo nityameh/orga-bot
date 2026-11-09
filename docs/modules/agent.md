@@ -32,15 +32,15 @@ re-running on another path could save a note twice.
 | `src/agent/tools/reminders.js` | `create_reminder`, `list_reminders`, `cancel_reminder`, `reschedule_reminder`, `get_today` |
 | `src/agent/tools/google.js` | `list_calendar_events`, `create_calendar_event` (needs approval), `search_email` (registered only when Google is configured) |
 | `src/agent/approvals.js` | Human-in-the-loop approvals for `external` tools (see [integrations.md](integrations.md#approvals-human-in-the-loop)) |
-| `src/agent/prompt.js` | Loads `prompts/agent.system.v1.md`; builds the per-request context (time, name, channel) |
+| `src/agent/prompt.js` | Loads `prompts/agent.system.v2.md` (v2: organiser + general-purpose assistant, ADR-021); builds the per-request context (time, name, channel) |
 | `src/agent/time.js` | IST helpers |
 | `src/agent/index.js` | Composition root: provider selection, conversation memory, daily budget, `agent.turn` events |
 | `src/llm/types.js` | `LLMProvider` port and message/content-block types |
 | `src/llm/anthropicProvider.js` | Claude: prompt caching, effort, server-side refusal fallback |
-| `src/llm/groqProvider.js` | Groq (OpenAI-compatible) with message translation; free dev/eval option |
+| `src/llm/groqProvider.js` | Groq (OpenAI-compatible) with message translation; free option. Model from `GROQ_MODEL` (default `openai/gpt-oss-120b`, ADR-022); `groqModelParams()` sets low reasoning effort for reasoning models |
 | `src/llm/pricing.js` | $/MTok table → `costMicros()` |
 | `src/llm/fallbackProvider.js` | Fallback chain + per-call timeout + circuit breaker |
-| `prompts/agent.system.v1.md` | The system prompt (versioned; front matter documents purpose and changelog) |
+| `prompts/agent.system.v2.md` | The system prompt (versioned; front matter documents purpose and changelog). v1 kept for comparison |
 | `evals/agent/cases.json`, `evals/run-agent-evals.js` | Eval dataset and runner |
 
 ## How the loop works (LangGraph state graph, ADR-015)

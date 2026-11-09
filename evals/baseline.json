@@ -3,6 +3,14 @@
     "passRate": 0,
     "total": 32,
     "prompt": "agent.system.v1",
-    "date": "2026-11-05"
+    "date": "2026-11-05",
+    "note": "model retired by Groq (ADR-022); 0% was an expired key, not model quality"
+  },
+  "groq/openai/gpt-oss-120b": {
+    "passRate": 0.821,
+    "total": 39,
+    "prompt": "agent.system.v2",
+    "date": "2026-11-10",
+    "note": "first full run (reports/2026-11-09T19-18-45-525Z); later runs hit the free 200k tokens/day limit"
   }
 }

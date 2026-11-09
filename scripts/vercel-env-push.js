@@ -13,7 +13,7 @@ const { spawnSync } = require('child_process');
 const dotenv = require('dotenv');
 
 const VERCEL = ['-y', 'vercel@65.12.1'];
-const NOT_SECRET = new Set(['NODE_ENV', 'DASHBOARD_URL', 'AGENT_PROVIDER', 'AGENT_MODEL', 'AGENT_EFFORT', 'GOOGLE_REDIRECT_URI', 'GOOGLE_CLIENT_ID', 'PHONE_NUMBER_ID']);
+const NOT_SECRET = new Set(['NODE_ENV', 'DASHBOARD_URL', 'TELEGRAM_BOT_USERNAME', 'WHATSAPP_NUMBER', 'SIGNUP_MODE','AGENT_PROVIDER', 'AGENT_MODEL', 'AGENT_EFFORT', 'GOOGLE_REDIRECT_URI', 'GOOGLE_CLIENT_ID', 'PHONE_NUMBER_ID']);
 const REQUIRED = ['DATABASE_URL', 'DIRECT_URL', 'CRON_SECRET', 'DASHBOARD_URL', 'NODE_ENV'];
 
 const args = process.argv.slice(2);

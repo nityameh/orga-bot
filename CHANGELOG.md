@@ -6,6 +6,17 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Commits follow
 
 ## [Unreleased]
 
+### Join from chat apps + general assistant (ADR-021)
+#### Added
+- Invite page: "Continue on Telegram" (`t.me/<bot>?start=<code>`) and "Continue on WhatsApp" (`wa.me/<number>?text=join <code>`), plus web
+- `onboardUnknownChat()`: unknown chats join only with an invite code or `/link CODE`; 5 code attempts per chat per 10 min
+- `GET /api/v1/auth/invite/channels`; `SIGNUP_MODE`, `TELEGRAM_BOT_USERNAME`, `WHATSAPP_NUMBER`
+- Prompt `agent.system.v2`: general-purpose answers (explain, draft, translate, brainstorm) alongside organiser tools; `general` eval suite
+- Channel `maxTextLength`; long replies are split instead of failing
+#### Fixed
+- **Outage:** Groq retired `llama-3.3-70b-versatile`; every agent call failed and fell back to keywords. Model is now `GROQ_MODEL` (default `openai/gpt-oss-120b`, ADR-022)
+- **Security:** any Telegram/WhatsApp chat got an account automatically, bypassing invite-only access
+
 ### Serverless mode: everything on Vercel (ADR-020)
 #### Added
 - `api/index.js` + `vercel.json`: the API runs as a Vercel Function; production-only migrations at build (`scripts/vercel-build.js`)

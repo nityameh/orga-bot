@@ -9,10 +9,14 @@ const prisma = require('../../src/db');
 const { processInbound } = require('../../src/pipeline');
 const { runWithContext } = require('../../src/context');
 const { createLinkCode } = require('../../src/users/identity');
+const { invites } = require('../../src/invites');
 
 const TG_ID = '990000001';
 const WA_ID = '910000000020';
 const TG_LINKER = '990000002';
+const TG_OTHER = '990000003';
+const TG_STRANGER = '990000004';
+const ALL_IDS = [TG_ID, WA_ID, TG_LINKER, TG_OTHER, TG_STRANGER];
 let server, baseUrl;
 
 const tg = (text, externalId = TG_ID) => ({
@@ -50,24 +54,38 @@ beforeAll(async () => {
 afterAll(async () => {
   server?.close();
   const ids = await prisma.channelIdentity.findMany({
-    where: { externalId: { in: [TG_ID, WA_ID, TG_LINKER] } }, select: { userId: true },
+    where: { externalId: { in: ALL_IDS } }, select: { userId: true },
   });
   await prisma.user.deleteMany({ where: { id: { in: ids.map((i) => i.userId) } } }); // cascades
+  await prisma.invite.deleteMany({ where: { label: 'test:pipeline' } });
   await prisma.$disconnect();
 });
 
-describe('Telegram webhook', () => {
-  it('accepts an update over HTTP and creates the user + identity', async () => {
-    const res = await fetch(`${baseUrl}/webhooks/telegram`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ update_id: Date.now(), message: { text: 'hello', chat: { id: Number(TG_ID), type: 'private' }, from: { first_name: 'Tess' } } }),
-    });
+const tgUpdate = (text, chatId = TG_ID) => fetch(`${baseUrl}/webhooks/telegram`, {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ update_id: Date.now(), message: { text, chat: { id: Number(chatId), type: 'private' }, from: { first_name: 'Tess' } } }),
+});
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+describe('Telegram webhook + invite-only onboarding (ADR-021)', () => {
+  it('an unknown chat without an invite gets no account', async () => {
+    const res = await tgUpdate('hello');
+    expect(res.status).toBe(200);
+    await sleep(800); // processing runs after the 200
+    expect(await userFor('telegram', TG_ID)).toBeUndefined();
+  });
+
+  it('the invite deep link (/start CODE) creates the user + identity and uses the invite', async () => {
+    const { code } = await invites.createInvite({ label: 'test:pipeline' });
+    const res = await tgUpdate(`/start ${code}`);
     expect(res.status).toBe(200);
     const userId = await waitFor(() => userFor('telegram', TG_ID));
     expect(userId).toBeTruthy();
     const user = await prisma.user.findUnique({ where: { id: userId } });
     expect(user.phone).toBeNull(); // Telegram users have no phone number
+    const invite = await prisma.invite.findFirst({ where: { label: 'test:pipeline' }, orderBy: { createdAt: 'desc' } });
+    expect(invite.uses).toBe(1);
   });
 
   it('returns 200 for non-message updates without creating anything', async () => {
@@ -107,24 +125,53 @@ describe('processing and the Interaction log', () => {
   });
 });
 
+describe('WhatsApp click-to-chat onboarding (ADR-021)', () => {
+  const wa = (text, id = `w_${Math.random()}`) => ({ channel: 'whatsapp', externalId: WA_ID, from: WA_ID, id, text, name: 'W' });
+
+  it('rejects an invalid code without creating anything', async () => {
+    await send(wa('join ORGA-AAAA-BBBB'));
+    expect(await userFor('whatsapp', WA_ID)).toBeUndefined();
+  });
+
+  it('"join CODE" creates the account with the verified number as phone; repeats don\'t use the invite again', async () => {
+    const { code } = await invites.createInvite({ label: 'test:pipeline', maxUses: 2 });
+    await send(wa(`join ${code.toLowerCase()}`));
+    const userId = await userFor('whatsapp', WA_ID);
+    expect((await prisma.user.findUnique({ where: { id: userId } })).phone).toBe(WA_ID);
+
+    await send(wa(`join ${code}`)); // the chat already has an account: normal message now
+    expect(await userFor('whatsapp', WA_ID)).toBe(userId);
+    const invite = await prisma.invite.findFirst({ where: { label: 'test:pipeline', maxUses: 2 } });
+    expect(invite.uses).toBe(1);
+  });
+
+  it('a used-up invite admits nobody else', async () => {
+    const { code } = await invites.createInvite({ label: 'test:pipeline' });
+    await send(tg(`/start ${code}`, TG_OTHER));
+    expect(await userFor('telegram', TG_OTHER)).toBeTruthy();
+    await send(tg(`/start ${code}`, TG_STRANGER));
+    expect(await userFor('telegram', TG_STRANGER)).toBeUndefined();
+  });
+});
+
 describe('cross-channel linking', () => {
-  it('links a fresh Telegram chat to an existing WhatsApp account', async () => {
-    // WhatsApp user with data
-    await send({ channel: 'whatsapp', externalId: WA_ID, from: WA_ID, id: 'w1', text: 'hi', name: 'W' });
+  it('an unknown chat sending /link CODE joins the existing account directly (no throwaway user)', async () => {
     const waUserId = await userFor('whatsapp', WA_ID);
     await prisma.note.create({ data: { userId: waUserId, title: 'existing note', tags: [] } });
-
-    // New Telegram chat: first message creates a throwaway user
-    await send(tg('hi', TG_LINKER));
-    const throwaway = await userFor('telegram', TG_LINKER);
-    expect(throwaway).not.toBe(waUserId);
+    const usersBefore = await prisma.user.count();
 
     const { code } = await createLinkCode(waUserId);
     await send(tg(`/link ${code.toLowerCase()}`, TG_LINKER));
 
     expect(await userFor('telegram', TG_LINKER)).toBe(waUserId);
-    expect(await prisma.user.findUnique({ where: { id: throwaway } })).toBeNull();
+    expect(await prisma.user.count()).toBe(usersBefore);
+    expect(await prisma.linkCode.count({ where: { userId: waUserId } })).toBe(0); // single use
     expect(await prisma.interaction.count({ where: { userId: waUserId, kind: 'channel.linked' } })).toBe(1);
+  });
+
+  it('an unknown chat with an invalid link code gets nothing', async () => {
+    await send(tg('/link AAAA-BBBB', TG_STRANGER));
+    expect(await userFor('telegram', TG_STRANGER)).toBeUndefined();
   });
 
   it('refuses to merge a chat that already has its own data', async () => {

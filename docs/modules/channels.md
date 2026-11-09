@@ -23,6 +23,7 @@ with `reply(message, text)` without knowing which app it is talking to.
 | `reply(message, text, buttons?)` | Answer an inbound message on its own channel; emits `message.sent` |
 | `notifyUser(user, { text, buttons?, template? })` | Proactive message; returns `false` if it couldn't be delivered |
 | `planDelivery(identities, capabilitiesOf, now)` | Pure decision used by `notifyUser` (exported for tests) |
+| `splitText(text, max)` | Splits replies longer than `capabilities.maxTextLength` (4096 on Telegram and WhatsApp, none on web) at paragraph/line/word boundaries; buttons go on the last part (ADR-021) |
 | `registry` | The `ChannelRegistry`; used by `src/pipeline.js` to mount webhooks |
 
 ## Files

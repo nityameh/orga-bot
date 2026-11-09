@@ -66,11 +66,22 @@ function createToolRegistry(tools) {
    * @param {ToolContext} ctx
    * @returns {Promise<{ ok: true, result: unknown } | { ok: false, error: string, needsApproval?: boolean }>}
    */
+  /**
+   * Models often "omit" an optional field by sending "" (e.g. person: "").
+   * Treat a top-level empty string as absent, so optional fields stay optional
+   * and required ones still fail validation with a clear message.
+   * @param {unknown} input
+   */
+  function dropEmptyStrings(input) {
+    if (!input || typeof input !== 'object' || Array.isArray(input)) return input;
+    return Object.fromEntries(Object.entries(input).filter(([, v]) => v !== ''));
+  }
+
   /** @param {string} name @param {unknown} rawInput */
   function validate(name, rawInput) {
     const tool = byName.get(name);
     if (!tool) return /** @type {const} */ ({ error: `Unknown tool "${name}".` });
-    const parsed = tool.inputSchema.safeParse(rawInput);
+    const parsed = tool.inputSchema.safeParse(dropEmptyStrings(rawInput));
     if (!parsed.success) {
       const issues = parsed.error.issues.map((/** @type {any} */ i) => `${i.path.join('.') || '(input)'}: ${i.message}`).join('; ');
       return /** @type {const} */ ({ error: `Invalid arguments — ${issues}` });
