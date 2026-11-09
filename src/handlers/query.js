@@ -10,6 +10,8 @@
 //   5. Reply with answer + source citations
 
 const Groq = require('groq-sdk');
+const { getConfig } = require('../config');
+const { groqModelParams } = require('../llm/groqProvider');
 const prisma = require('../db');
 const { reply } = require('../channels');
 const { log, warn } = require('../logger');
@@ -63,8 +65,9 @@ async function handleQuery(user, intent, message) {
   let answer;
   try {
     const response = await getGroq().chat.completions.create({
-      model: 'llama-3.3-70b-versatile',
-      max_tokens: 300,
+      model: getConfig().GROQ_MODEL,
+      ...groqModelParams(getConfig().GROQ_MODEL),
+      max_tokens: 1024, // room for reasoning tokens on reasoning models
       temperature: 0.3,
       messages: [
         { role: 'system', content: ANSWER_PROMPT + '\n\nCONTEXT:\n' + contextText },
