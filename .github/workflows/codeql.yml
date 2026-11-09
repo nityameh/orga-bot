@@ -11,6 +11,7 @@ on:
 permissions:
   contents: read
   security-events: write
+  actions: read # required on private repos: analyze reads the workflow run
 
 jobs:
   analyze:
