@@ -29,7 +29,7 @@ jobs:
       - name: Skip when no LLM key is configured
         if: env.ANTHROPIC_API_KEY == '' && env.GROQ_API_KEY == ''
         run: echo "::notice::No ANTHROPIC_API_KEY or GROQ_API_KEY secret — evals skipped."
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         if: env.ANTHROPIC_API_KEY != '' || env.GROQ_API_KEY != ''
       - uses: actions/setup-node@v4
         if: env.ANTHROPIC_API_KEY != '' || env.GROQ_API_KEY != ''
