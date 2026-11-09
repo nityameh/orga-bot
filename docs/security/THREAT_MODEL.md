@@ -37,6 +37,7 @@
 | T9 | (1) | DoS | Message flood → LLM cost spike | Per-user rate limit (20/min); per-user daily token budget → free fallback path; step and time limits per turn | ✅ Phase 2 |
 | T10 | (3) | Info disclosure | DB dump exposes usable tokens | Login/session tokens hashed; Google tokens AES-256-GCM with key outside the DB; never returned by APIs | ✅ |
 | T20 | (2) | Spoofing | OAuth CSRF: attacker links their Google account to a victim (or vice versa) | Encrypted, expiring `state` bound to the session user; PKCE | ✅ Phase 3 |
+| T21 | (1) | Elevation | Anyone messaging the bot gets an account (invite bypass), spending the shared LLM budget | Unknown chats join only with an invite or link code; 5 code attempts per chat per 10 min; uniform `crypto.randomInt` codes (ADR-021) | ✅ |
 | T21 | (4) | Elevation | Agent sends invites/emails on its own (e.g. after injection) | `external` tools only run after the user taps Approve; re-validated; approve-once | ✅ Phase 3 |
 | T11 | (4) | Tampering | Prompt injection via note (later email) content makes agent act | Tool results wrapped as `<tool_data>` + prompt rule; external tools fail closed; strict tool schemas reject extra args; `safety` eval suite | ✅ notes (Phase 2), email in Phase 3 |
 | T19 | (4) | Elevation | Model passes another user's ids to a tool | Tools scope every query by the session user, never by model input; integration tests | ✅ Phase 2 |
@@ -44,7 +45,7 @@
 | T17 | (1) | Spoofing | Hijack an account by guessing a `/link` code | 8-char codes (~8.5×10¹¹), hashed, 10-min expiry, 5 attempts/10 min per chat; merging never deletes data | ✅ Phase 1 |
 | T18 | (1) | Tampering | Forged Telegram button callback injects a command | Only whitelisted callback ids map to text | ✅ Phase 1 |
 | T13 | all | Info disclosure | Secrets committed to git | `.env` gitignored; gitleaks in CI | ✅ |
-| T14 | all | Tampering | Vulnerable dependency | `npm audit` gate (high+), Dependabot, CodeQL | ✅ |
+| T14 | all | Tampering | Vulnerable dependency | `npm audit` gate (high+), Dependabot, CodeQL (fails CI on findings; exclusions documented in `.github/codeql/codeql-config.yml`) | ✅ |
 | T15 | (1) | Info disclosure | Unauthenticated debug route triggers mass messages | `/test-digest` route removed | ✅ Phase 0 |
 | T16 | all | Info disclosure | "Delete my data" doesn't delete | Confirmed, transactional hard delete of all user rows | ✅ Phase 0 |
 
@@ -52,4 +53,4 @@
 | Risk | Why accepted | Revisit |
 |---|---|---|
 | iCal links (`/ical/:id.ics`) are unauthenticated | Opened from chat apps without cookies; ids are unguessable cuids; content is one reminder title | If reminder content becomes sensitive |
-| In-memory rate limits reset on restart and aren't shared across instances | Single instance at current scale | Before running >1 API instance |
+| In-memory rate limits reset on restart and aren't shared across instances | Small invite-only user base; webhooks are signed, codes have ~8.5×10¹¹ combinations | **Now:** Vercel runs several instances (ADR-020), so limits are per instance. Move limiters to Postgres if abuse appears |

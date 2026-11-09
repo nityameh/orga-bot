@@ -1,0 +1,27 @@
+# CodeQL configuration. Every exclusion states why it is safe; re-check these
+# when the code they describe changes. See docs/security/THREAT_MODEL.md.
+name: orga-codeql
+
+queries:
+  - uses: security-extended
+
+# Local developer tooling and tests never run on the server (file-system-race
+# findings in eval/harvest scripts are not reachable by users).
+paths-ignore:
+  - test
+  - scripts
+  - evals
+  - dashboard/.next
+
+query-filters:
+  # CSRF is mitigated without a token library: SameSite=Lax session cookie,
+  # JSON-only state-changing requests (requireJsonForMutations) and a CORS
+  # allowlist of the dashboard origin (src/auth/http.js). CodeQL only
+  # recognises token middleware such as csurf.
+  - exclude:
+      id: js/missing-token-validation
+  # Routes are limited by our own in-memory limiter (src/ratelimiter.js) or
+  # authenticated by a secret/signature (webhooks, /internal/tick). CodeQL only
+  # recognises express-rate-limit.
+  - exclude:
+      id: js/missing-rate-limiting

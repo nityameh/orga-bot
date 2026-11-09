@@ -58,8 +58,8 @@ async function resolveUser(inbound, { create = false } = {}) {
 
 /** @returns {string} e.g. "K7PM-Q2XD" */
 function generateLinkCode() {
-  const bytes = crypto.randomBytes(8);
-  const chars = [...bytes].map((b) => ALPHABET[b % ALPHABET.length]).join('');
+  // randomInt is uniform; `byte % 31` would favour the first 8 characters (256 isn't a multiple of 31).
+  const chars = Array.from({ length: 8 }, () => ALPHABET[crypto.randomInt(ALPHABET.length)]).join('');
   return `${chars.slice(0, 4)}-${chars.slice(4)}`;
 }
 

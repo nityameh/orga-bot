@@ -16,7 +16,8 @@ const hash = (/** @type {string} */ code) => crypto.createHash('sha256').update(
 
 /** @returns {string} e.g. "ORGA-K7PM-Q2XD" (~8.5e11 combinations) */
 function generateInviteCode() {
-  const chars = [...crypto.randomBytes(8)].map((b) => ALPHABET[b % ALPHABET.length]).join('');
+  // randomInt is uniform; `byte % 31` would favour the first 8 characters (256 isn't a multiple of 31).
+  const chars = Array.from({ length: 8 }, () => ALPHABET[crypto.randomInt(ALPHABET.length)]).join('');
   return `ORGA-${chars.slice(0, 4)}-${chars.slice(4)}`;
 }
 
