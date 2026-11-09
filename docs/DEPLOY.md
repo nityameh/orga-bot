@@ -42,11 +42,12 @@ two URLs with the same host and password:
 
 | Env var | Which pooler | Port | Append |
 |---|---|---|---|
-| `DATABASE_URL` | **Transaction** pooler (made for serverless) | 6543 | `?pgbouncer=true&connection_limit=1` |
+| `DATABASE_URL` | **Transaction** pooler (made for serverless) | 6543 | `?pgbouncer=true&connection_limit=5&pool_timeout=20` |
 | `DIRECT_URL` | **Session** pooler (migrations need it) | 5432 | nothing |
 
 They look like
-`postgresql://postgres.<project-ref>:<password>@aws-<n>-<region>.pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=1`.
+`postgresql://postgres.<project-ref>:<password>@aws-<n>-<region>.pooler.supabase.com:6543/postgres?pgbouncer=true&connection_limit=5&pool_timeout=20`.
+Why 5 and not 1: one Vercel instance serves many requests at once (Fluid compute), see [ADR-023](adr/ADR-023-db-connections-fluid-compute.md).
 If your password contains `@ : / ? #`, URL-encode those characters. pgvector is
 available on Supabase, and the first migration enables it.
 
@@ -143,6 +144,7 @@ The API runs as a normal server: pg-boss schedules jobs in-process and `/interna
 | Vercel build fails at `prisma migrate deploy` | `DIRECT_URL` is missing or points at 6543; it must be the session pooler (5432) |
 | Reminders never fire (Vercel) | cron-job.org history: 401 = wrong header, 404 = `CRON_SECRET` unset on the API, or the job is disabled |
 | Too many connections (Render/VM) | Session pooler (5432), `connection_limit=5`, `DB_POOL_MAX=3` |
+| "Timed out fetching a new connection from the connection pool" (Vercel) | `connection_limit` too low for concurrent requests: use `connection_limit=5&pool_timeout=20` (ADR-023) |
 | Dashboard redirects to /login after accepting an invite | `API_ORIGIN` on the dashboard must point at the API; `DASHBOARD_URL` on the API must be the exact dashboard URL |
 | Replies arrive late in the morning (Render) | The pinger lapsed and the API slept; check cron-job.org history |
 | Supabase project paused | Free projects pause after 7 days with no activity; restore from the Supabase dashboard |
