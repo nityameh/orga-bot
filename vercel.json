@@ -1,6 +1,9 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
+  "regions": [
+    "sin1"
+  ],
   "installCommand": "npm ci",
   "buildCommand": "npm run build:vercel",
   "outputDirectory": "public",
@@ -11,5 +14,10 @@
       "excludeFiles": "{node_modules/@huggingface/**,node_modules/onnxruntime-node/**,node_modules/onnxruntime-web/**,node_modules/sharp/**,.cache/**}"
     }
   },
-  "rewrites": [{ "source": "/(.*)", "destination": "/api" }]
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/api"
+    }
+  ]
 }
