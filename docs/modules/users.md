@@ -10,7 +10,8 @@ chats share one account: the same notes, reminders and dashboard.
 ## Public Interface
 | Export | Purpose |
 |---|---|
-| `resolveUser(inbound)` | → `{ user, isNew }`. Finds the user by `(channel, externalId)` or creates user + identity; updates `lastInboundAt` |
+| `resolveUser(inbound, { create })` | → `{ user, isNew }`. Finds the user by `(channel, externalId)` and updates `lastInboundAt`. Unknown chats: creates user + identity only when `create` (SIGNUP_MODE=open); otherwise `{ user: null }` and the pipeline hands over to invite onboarding (ADR-021) |
+| `linkNewIdentity(code, inbound)` | An unknown chat sent `/link CODE`: attach it to the code's account (single use, transactional) |
 | `createLinkCode(userId)` | → `{ code: "K7PM-Q2XD", ttlMinutes: 10 }` (one active code per user) |
 | `consumeLinkCode(input, currentUser, inbound)` | → `'linked' \| 'invalid' \| 'same_account' \| 'has_data'` |
 | `normaliseLinkCode`, `generateLinkCode` | Pure helpers (tested) |

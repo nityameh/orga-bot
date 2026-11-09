@@ -98,6 +98,8 @@ async function routeCommand(user, message) {
   // ─── Fixed slash commands ─────────────────────────────────────────────
   if (text.startsWith('/list'))                       { await handleListTasks(user, intent, message); return true; }
   if (text === '/help' || text.startsWith('/help '))  { await handleHelp(user, intent, message); return true; }
+  // Telegram's Start button (or an invite deep link tapped again) from someone who already has an account.
+  if (text === '/start' || text.startsWith('/start ')) { await handleHelp(user, intent, message); return true; }
   if (text.startsWith('/client'))                     { await handleClient(user, message); return true; }
   if (text === '/export')                             { await handleExport(user, intent, message); return true; }
   if (text === '/privacy')                            { await handlePrivacy(user, intent, message); return true; }

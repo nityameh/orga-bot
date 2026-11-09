@@ -42,11 +42,42 @@ registry.register(createTelegramAdapter({
  * @param {import('./types').OutboundMessage} outbound
  */
 async function deliver(target, outbound) {
-  const ok = await registry.get(target.channel).send(target.externalId, outbound);
+  const adapter = registry.get(target.channel);
+  const parts = splitText(outbound.text, adapter.capabilities.maxTextLength ?? null);
+  let ok = true;
+  for (const [i, part] of parts.entries()) {
+    // Buttons belong to the last part, right where the user reads the question.
+    const last = i === parts.length - 1;
+    ok = await adapter.send(target.externalId, last ? { ...outbound, text: part } : { text: part });
+    if (!ok) break;
+  }
   if (ok && target.userId) {
     emit({ kind: KINDS.MESSAGE_SENT, userId: target.userId, channel: target.channel, payload: { chars: outbound.text.length } });
   }
   return ok;
+}
+
+/**
+ * Split a long reply into pieces that fit a channel's message limit, preferring
+ * paragraph, then line, then word boundaries. Pure; exported for tests.
+ * @param {string} text
+ * @param {number | null} max  null = no limit
+ * @returns {string[]}
+ */
+function splitText(text, max) {
+  if (!max || text.length <= max) return [text];
+  const parts = [];
+  let rest = text;
+  while (rest.length > max) {
+    const window = rest.slice(0, max);
+    // Cut at the last good boundary, but not so early that we send tiny pieces.
+    const cut = [window.lastIndexOf('\n\n'), window.lastIndexOf('\n'), window.lastIndexOf(' ')]
+      .find((i) => i > max * 0.5) ?? max;
+    parts.push(rest.slice(0, cut).trimEnd());
+    rest = rest.slice(cut).trimStart();
+  }
+  if (rest) parts.push(rest);
+  return parts;
 }
 
 /**
@@ -119,4 +150,4 @@ async function notifyUser(user, outbound) {
   return deliver(target, outbound);
 }
 
-module.exports = { registry, reply, notifyUser, planDelivery };
+module.exports = { registry, reply, notifyUser, planDelivery, splitText };
