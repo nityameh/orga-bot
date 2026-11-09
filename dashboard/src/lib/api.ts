@@ -35,6 +35,8 @@ export const api = {
   me: () => apiFetch('/auth/me'),
   redeemInvite: (code: string) =>
     apiFetch('/auth/invite', { method: 'POST', body: JSON.stringify({ code }) }),
+  inviteChannels: (): Promise<{ telegram: string | null; whatsapp: string | null }> =>
+    apiFetch('/auth/invite/channels'),
 
   // Web chat (ADR-018)
   getChatMessages: (after?: string) =>

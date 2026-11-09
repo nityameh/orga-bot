@@ -37,6 +37,10 @@ async function main() {
     drop_pending_updates: true,
   });
   console.log(data.ok ? `✓ Webhook set to ${base}/webhooks/telegram` : data);
+
+  // The invite page's "Continue on Telegram" button needs the bot's username (ADR-021).
+  const { data: me } = await axios.get(api('getMe'));
+  if (me.ok) console.log(`  Set TELEGRAM_BOT_USERNAME=${me.result.username} on the API for invite deep links.`);
 }
 
 main().catch((err) => {

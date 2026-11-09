@@ -35,3 +35,5 @@ can see **what** was decided, **why**, and **what was rejected**.
 | [018](ADR-018-invites-and-web-chat.md) | Invite-only access and a web chat channel | Accepted |
 | [019](ADR-019-free-deployment.md) | Completely free deployment (Vercel + Render + Supabase, or one free VM) | Accepted |
 | [020](ADR-020-vercel-serverless.md) | Serverless mode: API on Vercel Functions with waitUntil, durable dedupe and a cron-driven tick | Accepted |
+| [022](ADR-022-groq-model-as-config.md) | Groq model comes from `GROQ_MODEL`; default `openai/gpt-oss-120b` after Llama 3.3 was retired | Accepted |
+| [021](ADR-021-channel-onboarding-and-general-assistant.md) | Join from Telegram/WhatsApp via invite deep links (closes the invite bypass); Orga is also a general assistant | Accepted |

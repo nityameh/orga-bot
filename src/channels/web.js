@@ -14,7 +14,7 @@ function createWebAdapter({ prisma }) {
   return {
     name: 'web',
     webhookPath: null,                                   // inbound via /api/v1/chat (session-authenticated)
-    capabilities: { maxButtons: 3, freeformWindowHours: null },
+    capabilities: { maxButtons: 3, freeformWindowHours: null, maxTextLength: null },
     isConfigured: () => true,
     verifyRequest: () => false,                          // no webhook to verify
     parseInbound: () => [],

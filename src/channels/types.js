@@ -41,6 +41,7 @@
  * @typedef {Object} ChannelCapabilities
  * @property {number} maxButtons
  * @property {number | null} freeformWindowHours  null = bot may message any time
+ * @property {number | null} [maxTextLength]  longer replies are split into several messages; null = no limit
  */
 
 /**
