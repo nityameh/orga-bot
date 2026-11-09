@@ -5,6 +5,8 @@ const router = express.Router();
 const { classify } = require('../classifier');
 const { retrieveContext } = require('../handlers/query');
 const Groq = require('groq-sdk');
+const { getConfig } = require('../config');
+const { groqModelParams } = require('../llm/groqProvider');
 
 // Created lazily so the app can start without GROQ_API_KEY.
 let groq;
@@ -47,8 +49,9 @@ router.post('/', async (req, res, next) => {
 
     // Generate answer
     const response = await getGroq().chat.completions.create({
-      model: 'llama-3.3-70b-versatile',
-      max_tokens: 300,
+      model: getConfig().GROQ_MODEL,
+      ...groqModelParams(getConfig().GROQ_MODEL),
+      max_tokens: 1024, // room for reasoning tokens on reasoning models
       temperature: 0.3,
       messages: [
         { role: 'system', content: ANSWER_PROMPT + '\n\nCONTEXT:\n' + contextText },

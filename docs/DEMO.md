@@ -21,7 +21,8 @@ Or, in your own Orga chat: `/invite 3 2`. Paste the link into the meeting chat.
 ## The 5-minute script
 | Step | Interviewer does / you show | What it proves |
 |---|---|---|
-| 1 | Opens the link → "You're invited to Orga" → Accept | Invite-only onboarding, magic session (ADR-018, ADR-006) |
+| 1 | Opens the link → "You're invited to Orga" → **Continue on Telegram** (tap Start) or **Use on the web** | Invite-only onboarding with deep links, no phone number typed; magic session on the web (ADR-018, ADR-021, ADR-006) |
+| 1b | Types: `explain a retainer contract in 3 lines` | General-purpose assistant alongside the organiser tools (ADR-021) |
 | 2 | Types: `remind me kal shaam 5 baje to call Ravi` | Hinglish + IST time resolution, server-side validation, absolute time in the reply |
 | 3 | Types: `actually make it 6` | Conversation memory + `reschedule_reminder` |
 | 4 | Types: `note: Acme wants the logo in blue, budget 50k` then `what did acme want?` | Tools + hybrid retrieval (pgvector + full-text) |

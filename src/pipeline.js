@@ -16,6 +16,7 @@ const { runWithContext, setContext } = require('./context');
 const { emit, KINDS } = require('./interactions');
 const { log, warn, error } = require('./logger');
 const prisma = require('./db');
+const { getConfig } = require('./config');
 const { createDeduper } = require('./runtime/dedupe');
 const { runInBackground } = require('./runtime/background');
 
@@ -51,7 +52,13 @@ async function processInbound(message) {
     return;
   }
 
-  const { user, isNew } = await resolveUser(message);
+  const { user, isNew } = await resolveUser(message, { create: getConfig().SIGNUP_MODE === 'open' });
+  if (!user) {
+    // Invite-only (ADR-021): an unknown chat joins only with an invite or link code.
+    // Lazy require: invites → channels, which this module also loads.
+    await require('./invites').onboardUnknownChat(message);
+    return;
+  }
   message.userId = user.id;
   setContext({ userId: user.id });
 

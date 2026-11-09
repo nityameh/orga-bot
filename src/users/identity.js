@@ -14,13 +14,16 @@ const LINK_CODE_TTL_MINUTES = 10;
 const ALPHABET = '23456789ABCDEFGHJKMNPQRSTUVWXYZ';
 
 /**
- * Find or create the user behind an inbound message and record activity.
+ * Find the user behind an inbound message and record activity. Unknown chats
+ * get an account only when `create` is true (SIGNUP_MODE=open, local dev);
+ * in invite mode they get `user: null` and onboarding takes over (ADR-021).
  * Concurrency-safe: if two first messages race, the unique (channel,
  * externalId) constraint makes one create fail; we then read the winner.
  * @param {import('../channels/types').InboundMessage} inbound
- * @returns {Promise<{ user: import('@prisma/client').User, isNew: boolean }>}
+ * @param {{ create?: boolean }} [opts]
+ * @returns {Promise<{ user: import('@prisma/client').User, isNew: boolean } | { user: null, isNew: false }>}
  */
-async function resolveUser(inbound) {
+async function resolveUser(inbound, { create = false } = {}) {
   const where = { channel_externalId: { channel: inbound.channel, externalId: inbound.externalId } };
   const now = new Date();
 
@@ -32,6 +35,7 @@ async function resolveUser(inbound) {
     });
     return { user: existing.user, isNew: false };
   }
+  if (!create) return { user: null, isNew: false };
 
   try {
     const user = await prisma.user.create({
@@ -54,8 +58,8 @@ async function resolveUser(inbound) {
 
 /** @returns {string} e.g. "K7PM-Q2XD" */
 function generateLinkCode() {
-  const bytes = crypto.randomBytes(8);
-  const chars = [...bytes].map((b) => ALPHABET[b % ALPHABET.length]).join('');
+  // randomInt is uniform; `byte % 31` would favour the first 8 characters (256 isn't a multiple of 31).
+  const chars = Array.from({ length: 8 }, () => ALPHABET[crypto.randomInt(ALPHABET.length)]).join('');
   return `${chars.slice(0, 4)}-${chars.slice(4)}`;
 }
 
@@ -122,4 +126,36 @@ async function consumeLinkCode(input, currentUser, inbound) {
   return 'linked';
 }
 
-module.exports = { resolveUser, createLinkCode, consumeLinkCode, normaliseLinkCode, generateLinkCode };
+/**
+ * A chat Orga has never seen sends "/link CODE": attach that chat to the
+ * account that issued the code (ADR-021). Unlike consumeLinkCode there is no
+ * throwaway account to merge, because unknown chats no longer get one.
+ * @param {string} input
+ * @param {import('../channels/types').InboundMessage} inbound
+ * @returns {Promise<{ ok: true, userId: string } | { ok: false }>}
+ */
+async function linkNewIdentity(input, inbound) {
+  const code = normaliseLinkCode(input);
+  if (!code) return { ok: false };
+  const record = await prisma.linkCode.findUnique({ where: { codeHash: hash(code) } });
+  if (!record || record.expiresAt <= new Date()) return { ok: false };
+
+  try {
+    await prisma.$transaction([
+      prisma.linkCode.delete({ where: { id: record.id } }), // single use; fails if a concurrent link won
+      prisma.channelIdentity.create({
+        data: { userId: record.userId, channel: inbound.channel, externalId: inbound.externalId, displayName: inbound.name || null, lastInboundAt: new Date() },
+      }),
+    ]);
+  } catch (err) {
+    const code = /** @type {any} */ (err).code;
+    if (code === 'P2025' || code === 'P2002') return { ok: false }; // code already used / chat already linked
+    throw err;
+  }
+
+  emit({ kind: KINDS.CHANNEL_LINKED, userId: record.userId, channel: inbound.channel });
+  log('identity.linked', { userId: record.userId, channel: inbound.channel });
+  return { ok: true, userId: record.userId };
+}
+
+module.exports = { resolveUser, createLinkCode, consumeLinkCode, linkNewIdentity, normaliseLinkCode, generateLinkCode };

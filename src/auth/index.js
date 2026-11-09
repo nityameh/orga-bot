@@ -27,6 +27,7 @@ const authHttp = createAuthHttp({
   onLogin: (userId) => emit({ kind: KINDS.AUTH_LOGIN, userId, channel: 'dashboard' }),
   // Lazy require: invites → channels → … must not load during auth's own import.
   redeemInvite: (code) => require('../invites').redeemAndWelcome(code),
+  inviteChannels: () => require('../invites').inviteChannels(),
 });
 
 module.exports = { authService, authHttp, SESSION_COOKIE };

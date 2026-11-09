@@ -7,7 +7,7 @@ import { describe, it, expect, vi } from 'vitest';
 const { z } = require('zod');
 const { runAgentTurn, asToolData } = require('../../src/agent/agent');
 const { createToolRegistry, ToolInputError } = require('../../src/agent/toolRegistry');
-const { toOpenAIMessages, fromOpenAIMessage, normaliseFinish, createGroqProvider } = require('../../src/llm/groqProvider');
+const { toOpenAIMessages, fromOpenAIMessage, normaliseFinish, createGroqProvider, groqModelParams, relaxForServerValidation } = require('../../src/llm/groqProvider');
 const { createAnthropicProvider, normaliseStop } = require('../../src/llm/anthropicProvider');
 const { costMicros } = require('../../src/llm/pricing');
 const { startOfDayIST, toISTISOString } = require('../../src/agent/time');
@@ -219,6 +219,40 @@ describe('tool registry', () => {
     const r = registry();
     expect(await r.execute('save_note', { title: 'x', userId: 'someone-else' }, ctx)).toMatchObject({ ok: false });
   });
+
+  it('treats an empty string as an omitted optional field, but not as a valid required one', async () => {
+    const r = createToolRegistry([{
+      name: 'search', description: 's', permission: 'read',
+      inputSchema: z.strictObject({ query: z.string().min(1), person: z.string().min(1).optional() }),
+      execute: async (input) => input,
+    }]);
+    expect(await r.execute('search', { query: 'contract', person: '' }, ctx)).toEqual({ ok: true, result: { query: 'contract' } });
+    expect(await r.execute('search', { query: '' }, ctx)).toMatchObject({ ok: false });
+  });
+});
+
+describe('dynamic context calendar', () => {
+  const { upcomingDays } = require('../../src/agent/prompt');
+  it('lists today, tomorrow and the following days with IST weekdays', () => {
+    // Thu 5 Nov 2026, 23:30 IST (18:00 UTC): still Thursday in India.
+    const days = upcomingDays(new Date('2026-11-05T18:00:00Z')).split(' · ');
+    expect(days).toHaveLength(8);
+    expect(days[0]).toBe('today Thu 2026-11-05');
+    expect(days[1]).toBe('tomorrow Fri 2026-11-06');
+    expect(days[4]).toBe('Mon 2026-11-09');
+  });
+
+  it('rolls over at IST midnight, not UTC midnight', () => {
+    // 00:30 IST on Fri 6 Nov = 19:00 UTC on Thu 5 Nov.
+    expect(upcomingDays(new Date('2026-11-05T19:00:00Z')).startsWith('today Fri 2026-11-06')).toBe(true);
+  });
+});
+
+describe('Groq schema relaxing', () => {
+  it('drops minLength at any depth and keeps everything else', () => {
+    const schema = { type: 'object', properties: { p: { type: 'string', minLength: 1, maxLength: 60 }, tags: { type: 'array', items: { type: 'string', minLength: 2 } } }, required: ['p'] };
+    expect(relaxForServerValidation(schema)).toEqual({ type: 'object', properties: { p: { type: 'string', maxLength: 60 }, tags: { type: 'array', items: { type: 'string' } } }, required: ['p'] });
+  });
 });
 
 describe('Groq message translation', () => {
@@ -251,14 +285,20 @@ describe('Groq provider', () => {
       choices: [{ finish_reason: 'tool_calls', message: { content: null, tool_calls: [{ id: 'c1', function: { name: 'get_today', arguments: '{}' } }] } }],
       usage: { prompt_tokens: 1000, completion_tokens: 100 },
     });
-    const p = createGroqProvider({ apiKey: 'k', model: 'llama-3.3-70b-versatile', client: { chat: { completions: { create } } } });
+    const p = createGroqProvider({ apiKey: 'k', model: 'openai/gpt-oss-120b', client: { chat: { completions: { create } } } });
     const res = await p.complete({ system: 'S', dynamicSystem: 'now', messages: [{ role: 'user', content: 'hi' }], tools: [{ name: 'get_today', description: 'd', input_schema: { type: 'object' } }] });
 
     const params = create.mock.calls[0][0];
     expect(params.messages[0]).toEqual({ role: 'system', content: 'S\n\nnow' });
     expect(params.tools).toEqual([{ type: 'function', function: { name: 'get_today', description: 'd', parameters: { type: 'object' } } }]);
+    expect(params.reasoning_effort).toBe('low'); // reasoning model: keep it fast
     expect(res).toMatchObject({ stopReason: 'tool_use', content: [toolUse('c1', 'get_today', {})], usage: { tokensIn: 1000, tokensOut: 100 } });
-    expect(res.costMicros).toBe(Math.round(1000 * 0.59 + 100 * 0.79));
+    expect(res.costMicros).toBe(Math.round(1000 * 0.15 + 100 * 0.75));
+  });
+
+  it('sends reasoning parameters only to reasoning models', () => {
+    expect(groqModelParams('openai/gpt-oss-20b')).toEqual({ reasoning_effort: 'low' });
+    expect(groqModelParams('qwen/qwen3.8-27b')).toEqual({});
   });
 
   it('treats a plain answer as end_turn', async () => {

@@ -51,7 +51,7 @@ function createWhatsAppAdapter({ token, phoneNumberId, verifyToken, appSecret, a
   return {
     name: 'whatsapp',
     webhookPath: '/webhook', // path registered in the Meta portal; kept for compatibility
-    capabilities: { maxButtons: 3, freeformWindowHours: 24 },
+    capabilities: { maxButtons: 3, freeformWindowHours: 24, maxTextLength: 4096 },
 
     isConfigured: () => Boolean(token),
 

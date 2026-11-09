@@ -4,7 +4,8 @@
 // opening it creates an account and signs the person in, with web chat ready,
 // so nobody needs a particular phone number to try Orga.
 //   createInvite()  → { code: "ORGA-K7PM-Q2XD", url, expiresAt }
-//   redeemInvite()  → new user + web identity, or a reason it failed
+//   redeemInvite()           → new user + web identity, or a reason it failed
+//   redeemInviteForChannel() → new user already linked to a Telegram/WhatsApp chat (ADR-021)
 // Codes are stored hashed; uses are claimed atomically.
 // Docs: docs/modules/invites.md
 
@@ -15,7 +16,8 @@ const hash = (/** @type {string} */ code) => crypto.createHash('sha256').update(
 
 /** @returns {string} e.g. "ORGA-K7PM-Q2XD" (~8.5e11 combinations) */
 function generateInviteCode() {
-  const chars = [...crypto.randomBytes(8)].map((b) => ALPHABET[b % ALPHABET.length]).join('');
+  // randomInt is uniform; `byte % 31` would favour the first 8 characters (256 isn't a multiple of 31).
+  const chars = Array.from({ length: 8 }, () => ALPHABET[crypto.randomInt(ALPHABET.length)]).join('');
   return `ORGA-${chars.slice(0, 4)}-${chars.slice(4)}`;
 }
 
@@ -47,12 +49,11 @@ function createInviteService({ prisma, dashboardUrl, now = () => new Date() }) {
   }
 
   /**
-   * Redeem an invite: atomically claim one use, then create the account with a
-   * web-chat identity (the web channel's externalId is the user id).
+   * Atomically claim one use of an invite.
    * @param {unknown} input
-   * @returns {Promise<{ ok: true, userId: string } | { ok: false, reason: 'invalid' | 'expired' | 'used_up' }>}
+   * @returns {Promise<{ ok: true } | { ok: false, reason: 'invalid' | 'expired' | 'used_up' }>}
    */
-  async function redeemInvite(input) {
+  async function claimUse(input) {
     const code = normaliseInviteCode(input);
     if (!code) return { ok: false, reason: 'invalid' };
     const invite = await prisma.invite.findUnique({ where: { codeHash: hash(code) } });
@@ -64,11 +65,53 @@ function createInviteService({ prisma, dashboardUrl, now = () => new Date() }) {
     const claimed = await prisma.$executeRaw`
       UPDATE "Invite" SET "uses" = "uses" + 1
       WHERE "id" = ${invite.id} AND "uses" < "maxUses" AND "revokedAt" IS NULL AND "expiresAt" > ${now()}`;
-    if (claimed !== 1) return { ok: false, reason: 'used_up' };
+    return claimed === 1 ? { ok: true } : { ok: false, reason: 'used_up' };
+  }
 
+  /**
+   * Redeem an invite from the web: create the account with a web-chat identity
+   * (the web channel's externalId is the user id).
+   * @param {unknown} input
+   * @returns {Promise<{ ok: true, userId: string } | { ok: false, reason: 'invalid' | 'expired' | 'used_up' }>}
+   */
+  async function redeemInvite(input) {
+    const claim = await claimUse(input);
+    if (!claim.ok) return claim;
     const user = await prisma.user.create({ data: { phone: null } });
     await prisma.channelIdentity.create({ data: { userId: user.id, channel: 'web', externalId: user.id, lastInboundAt: now() } });
     return { ok: true, userId: user.id };
+  }
+
+  /**
+   * Redeem an invite from a chat app (ADR-021): the person tapped "Continue on
+   * Telegram/WhatsApp" and their first message carries the code, so the account
+   * is created already linked to that chat. A message from a WhatsApp number
+   * proves the sender owns it, so it is stored as the user's phone.
+   * @param {unknown} input
+   * @param {{ channel: string, externalId: string, name?: string }} identity
+   * @returns {Promise<{ ok: true, userId: string } | { ok: false, reason: 'invalid' | 'expired' | 'used_up' | 'already_joined' }>}
+   */
+  async function redeemInviteForChannel(input, identity) {
+    const where = { channel_externalId: { channel: identity.channel, externalId: identity.externalId } };
+    // Checked before claiming so a duplicate delivery doesn't burn another use.
+    if (await prisma.channelIdentity.findUnique({ where })) return { ok: false, reason: 'already_joined' };
+
+    const claim = await claimUse(input);
+    if (!claim.ok) return claim;
+    try {
+      // Nested create: user and identity are written in one transaction.
+      const user = await prisma.user.create({
+        data: {
+          phone: identity.channel === 'whatsapp' ? identity.externalId : null,
+          identities: { create: { channel: identity.channel, externalId: identity.externalId, displayName: identity.name || null, lastInboundAt: now() } },
+        },
+      });
+      return { ok: true, userId: user.id };
+    } catch (err) {
+      // Two deliveries of the same first message raced; the other created the account.
+      if (/** @type {any} */ (err).code === 'P2002') return { ok: false, reason: 'already_joined' };
+      throw err;
+    }
   }
 
   /** @param {string} code */
@@ -79,7 +122,7 @@ function createInviteService({ prisma, dashboardUrl, now = () => new Date() }) {
     return count === 1;
   }
 
-  return { createInvite, redeemInvite, revokeInvite };
+  return { createInvite, redeemInvite, redeemInviteForChannel, revokeInvite };
 }
 
 module.exports = { createInviteService, generateInviteCode, normaliseInviteCode };
