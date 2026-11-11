@@ -5,6 +5,7 @@ Start here. Each document has one job.
 | I want to… | Read |
 |---|---|
 | Understand what Orga is and where it's going | [ROADMAP.md](ROADMAP.md) |
+| See the v2 market, competitors and business case (investor report) | [strategy/STRATEGY_REPORT.md](strategy/STRATEGY_REPORT.md) (Word: `strategy/Orga_Strategy_Report_v1.docx`) |
 | See how the system fits together | [architecture/HLD.md](architecture/HLD.md) |
 | Know why something was built a certain way | [adr/README.md](adr/README.md) |
 | Look up functions, routes, schema (auto-generated) | [LLD.md](LLD.md) |

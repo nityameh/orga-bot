@@ -293,7 +293,7 @@ describe('Groq provider', () => {
     expect(params.tools).toEqual([{ type: 'function', function: { name: 'get_today', description: 'd', parameters: { type: 'object' } } }]);
     expect(params.reasoning_effort).toBe('low'); // reasoning model: keep it fast
     expect(res).toMatchObject({ stopReason: 'tool_use', content: [toolUse('c1', 'get_today', {})], usage: { tokensIn: 1000, tokensOut: 100 } });
-    expect(res.costMicros).toBe(Math.round(1000 * 0.15 + 100 * 0.75));
+    expect(res.costMicros).toBe(Math.round(1000 * 0.15 + 100 * 0.6));
   });
 
   it('sends reasoning parameters only to reasoning models', () => {
