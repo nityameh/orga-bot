@@ -38,7 +38,7 @@ are available in chat as conveniences.
 
 **Market (bottom-up, §3).**
 - **TAM ≈ US$1.6 B/yr**: ~4.2 M writers in India × ₹299/month, plus ~15 M writing-centric creators globally × US$8/month.
-- **SAM ≈ US$170 M/yr**: India English/Hinglish writers reachable through Telegram and web, plus English-speaking writers globally from year 2.
+- **SAM ≈ US$170 M/yr**: India English/Hinglish writers reachable through WhatsApp, Telegram and web, plus English-speaking writers globally from year 2.
 - **SOM ≈ US$0.05–1.0 M ARR at the end of year 3** (downside to upside; base ≈ US$0.23 M).
 
 **Business model.** Freemium with a tight free tier. **Pro ₹299/month (US$8 global)**;
@@ -46,11 +46,19 @@ are available in chat as conveniences.
 margin per paying user is **~59 % in India and ~82 % globally**, after carrying free
 users (§5.3). Web search is the cost to manage.
 
-**The single biggest strategic fact.** Since **15 January 2026** Meta's WhatsApp
-Business terms bar third-party **general-purpose AI chatbots** whose chatbot is
-the primary functionality [S22]. Orga therefore **leads with Telegram and web**.
-It uses WhatsApp for **chat import** (a user-uploaded export file, which isn't
-affected) and, at most, for narrowly scoped notifications after legal review.
+**Channel strategy and the biggest platform risk.** Indian writers live in
+WhatsApp, so Orga keeps **WhatsApp, Telegram and web** as its chat channels, with
+WhatsApp **chat import** as the onboarding hook. However, since **15 January 2026**
+Meta's WhatsApp Business terms bar third-party **general-purpose AI chatbots**
+whose chatbot is the primary functionality [S22]. Orga is positioned as a
+**notebook for writers**, not a general assistant, and must clear that policy
+before a public WhatsApp launch. Telegram and web carry the product if
+it doesn't (§7.5).
+
+> **Scope of this exercise.** Orga is run as a simulated startup: the product
+> is built and used by a small invited group, not launched publicly. WhatsApp
+> runs on Meta's Cloud API in development mode, so the policy above is treated
+> as a **launch-gate risk**, not a build blocker.
 
 **Recommendation.**
 1. Beachhead: **English/Hinglish content writers, copywriters and lyricists in India.**
@@ -139,7 +147,7 @@ Both sit below or at peer pricing:
 | **TAM: India** | 4.2 M | ₹3,588 | ₹1,507 Cr ≈ **US$171 M** |
 | **TAM: Global writing creators** | 15 M | US$96 | **US$1.44 B** |
 | **TAM total** | | | **≈ US$1.6 B** |
-| **SAM: India** (English/Hinglish, smartphone, Telegram or web, AI-curious: 40 % [A7]) | 1.7 M | ₹3,588 | ₹610 Cr ≈ **US$69 M** |
+| **SAM: India** (English/Hinglish, smartphone, WhatsApp/Telegram/web, AI-curious: 40 % [A7]) | 1.7 M | ₹3,588 | ₹610 Cr ≈ **US$69 M** |
 | **SAM: Global from year 2** (English, reachable via web and Telegram: 7 % [A8]) | 1.05 M | US$96 | **US$101 M** |
 | **SAM total** | | | **≈ US$170 M** |
 
@@ -227,7 +235,7 @@ are marked. Feature sets change fast, so re-verify before external use.*
 
 ### 4.4 What this means
 1. **Mem is the closest competitor.** It has auto-detected projects, scheduled "Custom Routines" and Gmail "Connections" [S18b]. Orga's differentiation must be **writer-specific** and **India-specific**:
-   - Chat capture on Telegram plus WhatsApp chat import.
+   - Chat capture on WhatsApp and Telegram, plus WhatsApp chat import.
    - Hinglish.
    - ₹ pricing well below Mem's US$29 Pro.
    - Writing-native features: drafts, project briefs, rhyme and phrasing help with project context.
@@ -306,7 +314,7 @@ Rationale: free users must cost almost nothing (§5.3). The **paid-cost features
 ## 6. Growth opportunities
 
 1. **Import as the onboarding hook.** A new user uploads their WhatsApp "notes to self" export and sees **dozens of ideas already filed into suggested projects in minutes**. That's the moment of value, before they've captured anything new.
-2. **Telegram-first, web-always.** Telegram bots face no general-purpose-AI restriction comparable to WhatsApp's [S22]; the web workspace is the home for drafts. WhatsApp stays an **import source** and, after legal review, possibly a narrow notification channel.
+2. **WhatsApp where writers are, Telegram and web as the safety net.** WhatsApp is where Indian writers already keep "notes to self" (~536 M users [S13]), so it's the main capture channel. Telegram bots face no comparable general-purpose-AI restriction [S22], and the web workspace is the home for drafts. Because all three share one channel interface, losing any one channel costs a config change, not a rewrite.
 3. **Vernacular and Hinglish.** 66 % of creators are non-metro [S1]. Writing platforms prove demand in Indian languages [S2][S12]. Stage it:
    - Hinglish now.
    - Hindi script support next.
@@ -344,10 +352,10 @@ Poets and scriptwriters follow, once workspace drafts are mature.
 | MVP (must) | Defer |
 |---|---|
 | Projects (many-to-many), Inbox, auto-filing with one-tap corrections | Team/shared projects |
-| Telegram + web capture, voice notes (Whisper) | Indic scripts beyond Hinglish |
+| WhatsApp + Telegram + web capture, voice notes (Whisper) | Indic scripts beyond Hinglish |
 | Ask-a-project and brainstorm with project context | Email send, people-from-email |
 | Web search with citations (capped) | Advanced watch types (email-triggered) |
-| WhatsApp chat import with review screen (own messages by default, DPDP) | WhatsApp as a live chat channel (policy, §7.5) |
+| WhatsApp chat import with review screen (own messages by default, DPDP) | Public WhatsApp launch (needs policy clearance, §7.5) |
 | Project workspace: brief, ideas, Markdown drafts | Template marketplace |
 | 1–3 simple watches (weekly digest, inactivity nudge, web topic) | |
 
@@ -369,7 +377,7 @@ It measures the core value (ideas coming back when needed), not just capture.
 ### 7.5 Key risks and mitigations
 | Risk | Likelihood / impact | Mitigation |
 |---|---|---|
-| **WhatsApp policy:** general-purpose AI chatbots banned on the Business API since 15 Jan 2026 [S22] | High / High for WhatsApp-as-channel | Lead with Telegram + web; WhatsApp only for **file import** (user-initiated export) and, if legal review allows, narrowly scoped notifications for a notes product; never position as a general chatbot on WhatsApp |
+| **WhatsApp policy:** general-purpose AI chatbots banned on the Business API since 15 Jan 2026 [S22] | High / High for WhatsApp-as-channel | Position and build as a **writer's notebook** (filing, projects, drafts), never as a general chatbot; get legal review before public launch; keep Telegram + web at feature parity so WhatsApp can be switched off by config; chat **import** (user-uploaded file) is unaffected either way |
 | **Big Tech bundling:** free ChatGPT Go year, Google AI Plus ₹399 with NotebookLM, Meta AI in WhatsApp [S15][S16][S21] | High / Medium | Don't compete on general Q&A; compete on organising a writer's corpus; integrate with them (export, MCP) |
 | **Mem moves into India or writers** [S18b] | Medium / Medium | Local pricing, Hinglish, chat-native capture, WhatsApp import, writer templates, community distribution |
 | **Google restricted scopes:** Gmail read access requires a paid assessment to publish; Testing mode caps at 100 users and re-auth every 7 days | High / Low–Medium (email isn't core) | Keep email optional; calendar first; budget for verification only after PMF |
@@ -395,7 +403,7 @@ It measures the core value (ideas coming back when needed), not just capture.
 | A4 | Writing-centric share of global creators | 30 % | Conservative versus A2 (global creators skew video) |
 | A5 | India Pro price | ₹299/mo | Below ChatGPT Go and Google AI Plus (₹399) [S15][S16]; test vs ₹199 |
 | A6 | Global Pro price | US$8/mo | Below Notion Plus US$10, Mem Plus US$9 [S18a][S18b] |
-| A7 | India SAM share | 40 % | English/Hinglish + Telegram/web + AI-curious |
+| A7 | India SAM share | 40 % | English/Hinglish + WhatsApp/Telegram/web + AI-curious (the AI-curious filter dominates; channel reach is near-universal) |
 | A8 | Global SAM share | 7 % | English-speaking, reachable without paid acquisition in years 2–3 |
 | A9 | Annual-plan mix and discount | 25 % of payers on annual at ~30 % off → ~7.5 % blended reduction (applied to ARR) | Typical for prosumer subscriptions; Pro annual ₹2,499 ≈ 30 % off monthly |
 | A10 | Paid conversion (base) | 4 % | Benchmarks 2.18 % median freemium, 3.5 % productivity, 3–5 % self-serve SaaS [S19] |
