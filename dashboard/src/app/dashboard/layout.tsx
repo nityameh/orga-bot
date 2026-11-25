@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Sidebar from '@/components/Sidebar';
+import Sidebar, { Logo, MobileNav } from '@/components/Sidebar';
 import { api } from '@/lib/api';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -14,18 +14,22 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   if (!ready) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <p className="text-gray-400 text-sm">Loading…</p>
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-ink-50">
+        <div className="animate-pulse"><Logo compact /></div>
+        <p className="text-sm text-ink-400">Loading your workspace…</p>
       </div>
     );
   }
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
+    <div className="flex min-h-screen bg-ink-50">
       <Sidebar />
-      <main className="flex-1 p-8 overflow-auto">
-        {children}
-      </main>
+      <div className="flex min-w-0 flex-1 flex-col">
+        <MobileNav />
+        <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-8 lg:py-10">
+          {children}
+        </main>
+      </div>
     </div>
   );
 }

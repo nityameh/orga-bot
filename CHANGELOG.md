@@ -6,6 +6,16 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Commits follow
 
 ## [Unreleased]
 
+### Dashboard redesign
+#### Changed
+- New design system: brand tokens, Geist font, shared `.card`/`.btn`/`.input` classes and `components/ui.tsx`; inline SVG icons; no new dependencies
+- Home: greeting, stat cards, "Up next" reminder timeline, recent notes, task-list progress, chat examples
+- Insights: SVG area chart with hover tooltip, violet heatmap, tool-use bars, approval rate, people table with avatars
+- Activity: timeline with per-event icons and tool/model/latency/cost chips; Notes, Tasks (progress rings), Reminders (date tiles), Clients, Chat (bubbles, typing indicator, suggestions), Settings, login and invite restyled
+- Skeleton loading and empty states on every page; responsive top navigation on small screens
+#### Fixed
+- Notes: `useRouter()` was called after an early return in `NoteCard` (rules-of-hooks violation when a card entered edit mode)
+
 ### Join from chat apps + general assistant (ADR-021)
 #### Added
 - Invite page: "Continue on Telegram" (`t.me/<bot>?start=<code>`) and "Continue on WhatsApp" (`wa.me/<number>?text=join <code>`), plus web

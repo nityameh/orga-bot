@@ -1,25 +1,30 @@
+import AuthShell from '@/components/AuthShell';
+
+const STEPS = [
+  <>Open your chat with Orga on WhatsApp or Telegram.</>,
+  <>Send <code className="rounded-md bg-brand-50 px-1.5 py-0.5 font-mono text-brand-700">/login</code></>,
+  <>Tap the link Orga sends back. It works once and expires in 10 minutes.</>,
+];
+
 export default function LoginPage() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-      <div className="w-full max-w-sm p-8 bg-white rounded-xl shadow-sm">
-        <h1 className="text-2xl font-bold text-gray-900 mb-1">Orga</h1>
-        <p className="text-gray-500 text-sm mb-6">Sign in from your chat. No password needed.</p>
+    <AuthShell>
+      <h1 className="text-center text-2xl font-semibold tracking-tight text-ink-900">Sign in to Orga</h1>
+      <p className="mb-7 mt-1.5 text-center text-sm text-ink-500">From your chat. No password needed.</p>
 
-        <ol className="space-y-3 text-sm text-gray-700 list-decimal list-inside">
-          <li>Open your chat with Orga on WhatsApp or Telegram.</li>
-          <li>
-            Send <code className="px-1.5 py-0.5 bg-gray-100 rounded text-gray-900">/login</code>
+      <ol className="space-y-4">
+        {STEPS.map((step, i) => (
+          <li key={i} className="flex gap-3 text-sm text-ink-700">
+            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand-600 text-xs font-semibold text-white">{i + 1}</span>
+            <span className="pt-0.5">{step}</span>
           </li>
-          <li>Tap the link Orga sends back. It works once and expires in 10 minutes.</li>
-        </ol>
+        ))}
+      </ol>
 
-        <p className="text-xs text-gray-400 mt-8">
-          Only someone with access to your chat can sign in to your dashboard.
-        </p>
-        <p className="text-xs text-gray-500 mt-3">
-          New to Orga? Open the invite link you were sent. No phone number needed.
-        </p>
+      <div className="mt-8 space-y-2 border-t border-ink-100 pt-5 text-center text-xs">
+        <p className="text-ink-400">Only someone with access to your chat can sign in to your dashboard.</p>
+        <p className="text-ink-500">New to Orga? Open the invite link you were sent. No phone number needed.</p>
       </div>
-    </div>
+    </AuthShell>
   );
 }

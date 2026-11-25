@@ -3,6 +3,24 @@
 import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { Task, TaskItem } from '@/lib/types';
+import { EmptyState, PageHeader, SkeletonCards } from '@/components/ui';
+import { ArrowDownIcon, ArrowUpIcon, CheckIcon, ChevronDownIcon, PlusIcon, TaskIcon, TrashIcon } from '@/components/icons';
+
+/** Ring showing how much of a list is done. */
+function ProgressRing({ done, total }: { done: number; total: number }) {
+  const pct = total ? done / total : 0;
+  const r = 16;
+  const c = 2 * Math.PI * r;
+  return (
+    <svg width="40" height="40" viewBox="0 0 40 40" className="shrink-0" aria-label={`${done} of ${total} done`}>
+      <circle cx="20" cy="20" r={r} fill="none" stroke="var(--color-ink-100)" strokeWidth="4" />
+      <circle cx="20" cy="20" r={r} fill="none" stroke={pct === 1 ? 'var(--color-emerald-500)' : 'var(--color-brand-500)'}
+        strokeWidth="4" strokeLinecap="round" strokeDasharray={c} strokeDashoffset={c * (1 - pct)}
+        transform="rotate(-90 20 20)" className="transition-all duration-500" />
+      <text x="20" y="24" textAnchor="middle" className="fill-ink-700 text-[10px] font-semibold">{Math.round(pct * 100)}%</text>
+    </svg>
+  );
+}
 
 export default function TasksPage() {
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -54,82 +72,66 @@ export default function TasksPage() {
     loadTasks();
   };
 
-  if (loading) return <p className="text-gray-400 text-sm">Loading...</p>;
+  const openCount = tasks.reduce((n, t) => n + t.items.filter((i) => !i.done).length, 0);
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-xl font-bold text-gray-900">Tasks ({tasks.length})</h1>
-        <button
-          onClick={() => setShowNewForm(!showNewForm)}
-          className="px-4 py-2 bg-gray-900 text-white text-sm rounded-lg hover:bg-gray-800"
-        >
-          + New Task List
-        </button>
-      </div>
+    <div className="max-w-4xl">
+      <PageHeader
+        title="Tasks"
+        subtitle={loading ? ' ' : `${openCount} open ${openCount === 1 ? 'to-do' : 'to-dos'} across ${tasks.length} ${tasks.length === 1 ? 'list' : 'lists'}`}
+        actions={
+          <button onClick={() => setShowNewForm(!showNewForm)} className="btn btn-primary">
+            <PlusIcon size={16} /> New task list
+          </button>
+        }
+      />
 
       {showNewForm && (
-        <div className="bg-white border border-gray-200 rounded-xl p-4 mb-6">
-          <input
-            type="text"
-            placeholder="Task list name (e.g. Acme project)"
-            value={newTitle}
-            onChange={(e) => setNewTitle(e.target.value)}
-            className="w-full font-medium text-sm mb-2 px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900"
-            autoFocus
-          />
-          <textarea
-            placeholder="Items (comma separated, e.g. send invoice, review brief, call ravi)"
-            value={newItems}
-            onChange={(e) => setNewItems(e.target.value)}
-            className="w-full text-sm px-3 py-2 border border-gray-200 rounded-lg mb-3 resize-none focus:outline-none focus:ring-2 focus:ring-gray-900"
-            rows={2}
-          />
-          <div className="flex gap-2">
-            <button onClick={handleCreateTask} className="px-4 py-2 bg-gray-900 text-white text-sm rounded-lg hover:bg-gray-800">Save</button>
-            <button onClick={() => setShowNewForm(false)} className="px-4 py-2 text-gray-500 text-sm">Cancel</button>
+        <div className="card mb-6 space-y-3 p-5 animate-fade-up">
+          <input type="text" placeholder="Task list name (e.g. Acme project)" value={newTitle}
+            onChange={(e) => setNewTitle(e.target.value)} className="input font-medium" autoFocus />
+          <textarea placeholder="Items (comma separated, e.g. send invoice, review brief, call ravi)" value={newItems}
+            onChange={(e) => setNewItems(e.target.value)} className="input resize-none" rows={2} />
+          <div className="flex gap-2 pt-1">
+            <button onClick={handleCreateTask} className="btn btn-primary">Save list</button>
+            <button onClick={() => setShowNewForm(false)} className="btn btn-ghost">Cancel</button>
           </div>
         </div>
       )}
 
-      {tasks.length === 0 ? (
-        <div className="text-center py-16 text-gray-400">
-          <p className="text-lg mb-2">No task lists yet</p>
-          <p className="text-sm">Send "tasks: item1, item2, item3" to Orga on WhatsApp.</p>
-        </div>
+      {loading ? (
+        <SkeletonCards count={4} height="h-20" cols="" />
+      ) : tasks.length === 0 ? (
+        <EmptyState icon={<TaskIcon size={18} />} title="No task lists yet"
+          hint={<>Send <span className="font-mono text-ink-700">tasks: item1, item2, item3</span> to Orga on WhatsApp.</>} />
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-3 animate-fade-up">
           {tasks.map(task => {
             const isExpanded = expandedId === task.id;
             const pending = task.items.filter(i => !i.done).length;
             const done = task.items.filter(i => i.done).length;
 
             return (
-              <div key={task.id} className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-                <div
-                  className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50"
-                  onClick={() => setExpandedId(isExpanded ? null : task.id)}
-                >
-                  <div>
-                    <h3 className="font-medium text-sm text-gray-900">{task.title}</h3>
-                    <p className="text-xs text-gray-400 mt-0.5">
-                      {pending} pending, {done} done
-                      {task.client && ` · ${task.client}`}
+              <div key={task.id} className={`card overflow-hidden transition ${isExpanded ? 'ring-brand-200' : ''}`}>
+                <div className="flex cursor-pointer items-center gap-4 p-4 transition hover:bg-ink-50/60"
+                  onClick={() => setExpandedId(isExpanded ? null : task.id)}>
+                  <ProgressRing done={done} total={task.items.length} />
+                  <div className="min-w-0 flex-1">
+                    <h3 className="truncate text-[15px] font-semibold text-ink-900">{task.title}</h3>
+                    <p className="mt-0.5 text-xs text-ink-400">
+                      {pending} pending · {done} done
+                      {task.client && <> · <span className="font-medium capitalize text-ink-600">{task.client}</span></>}
                     </p>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <button
-                      onClick={(e) => { e.stopPropagation(); deleteTask(task.id); }}
-                      className="text-xs text-gray-400 hover:text-red-500"
-                    >
-                      delete
-                    </button>
-                    <span className="text-gray-400 text-xs">{isExpanded ? '▲' : '▼'}</span>
-                  </div>
+                  <button onClick={(e) => { e.stopPropagation(); deleteTask(task.id); }}
+                    className="btn btn-danger btn-sm p-2" title="Delete list" aria-label="Delete task list">
+                    <TrashIcon size={15} />
+                  </button>
+                  <span className={`text-ink-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`}><ChevronDownIcon size={18} /></span>
                 </div>
 
                 {isExpanded && (
-                  <div className="border-t border-gray-100 p-4 space-y-2">
+                  <div className="space-y-1 border-t border-ink-100 bg-ink-50/40 p-3">
                     {task.items.map((item, index) => (
                       <TaskItemRow
                         key={item.id}
@@ -163,28 +165,25 @@ function TaskItemRow({
   onMoveDown: () => void;
 }) {
   return (
-    <div className="flex items-center gap-3 group">
+    <div className="group flex items-center gap-3 rounded-xl px-2 py-2 transition hover:bg-white">
       <button
         onClick={onToggle}
-        className={`w-5 h-5 rounded border flex items-center justify-center text-xs shrink-0 ${
-          item.done
-            ? 'bg-gray-900 border-gray-900 text-white'
-            : 'border-gray-300 hover:border-gray-500'
-        }`}
+        aria-label={item.done ? `Mark "${item.text}" as not done` : `Mark "${item.text}" as done`}
+        className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md ring-1 transition ${item.done
+          ? 'bg-brand-600 text-white ring-brand-600'
+          : 'bg-white ring-ink-300 hover:ring-brand-500'}`}
       >
-        {item.done && '✓'}
+        {item.done && <CheckIcon size={13} strokeWidth={2.5} />}
       </button>
 
-      <span className={`flex-1 text-sm ${item.done ? 'text-gray-400 line-through' : 'text-gray-700'}`}>
-        {item.text}
-      </span>
+      <span className={`flex-1 text-sm ${item.done ? 'text-ink-400 line-through' : 'text-ink-700'}`}>{item.text}</span>
 
-      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+      <div className="flex gap-0.5 opacity-0 transition group-hover:opacity-100">
         {index > 0 && (
-          <button onClick={onMoveUp} className="text-xs text-gray-400 hover:text-gray-700 px-1">↑</button>
+          <button onClick={onMoveUp} className="btn btn-ghost btn-sm p-1" aria-label="Move up"><ArrowUpIcon size={14} /></button>
         )}
         {index < total - 1 && (
-          <button onClick={onMoveDown} className="text-xs text-gray-400 hover:text-gray-700 px-1">↓</button>
+          <button onClick={onMoveDown} className="btn btn-ghost btn-sm p-1" aria-label="Move down"><ArrowDownIcon size={14} /></button>
         )}
       </div>
     </div>

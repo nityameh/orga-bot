@@ -3,6 +3,8 @@
 import { Suspense, useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { api } from '@/lib/api';
+import { PageHeader } from '@/components/ui';
+import { GoogleIcon, ShieldIcon } from '@/components/icons';
 
 type Integration = { provider: string; status: string; accountEmail: string | null; scopes: string[]; createdAt: string };
 type Status = { available: { google: boolean }; integrations: Integration[] };
@@ -17,7 +19,8 @@ function SettingsContent() {
   const params = useSearchParams();
   const [status, setStatus] = useState<Status | null>(null);
   const [busy, setBusy] = useState(false);
-  const flash = FLASH[params.get('google') ?? ''];
+  const flashKey = params.get('google') ?? '';
+  const flash = FLASH[flashKey];
 
   const load = useCallback(() => api.getIntegrations().then(setStatus).catch(() => setStatus(null)), []);
   useEffect(() => { load(); }, [load]);
@@ -46,41 +49,60 @@ function SettingsContent() {
   };
 
   return (
-    <div className="max-w-2xl">
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">Settings</h1>
-      {flash && <p className="mb-4 text-sm text-gray-700 bg-gray-100 rounded-lg px-4 py-2">{flash}</p>}
+    <div className="max-w-3xl">
+      <PageHeader title="Settings" subtitle="Connected accounts and how Orga handles your data." />
 
-      <section className="bg-white rounded-xl border border-gray-200 p-6">
-        <h2 className="font-semibold text-gray-900">Google Calendar &amp; Gmail</h2>
-        <p className="text-sm text-gray-500 mt-1 mb-4">
-          Lets Orga read your calendar, add events you approve, and search your email (read-only).
-          Tokens are stored encrypted and you can disconnect at any time.
-        </p>
+      {flash && (
+        <p className={`mb-6 rounded-xl px-4 py-3 text-sm ring-1 animate-fade-up ${flashKey === 'connected'
+          ? 'bg-emerald-50 text-emerald-800 ring-emerald-200'
+          : 'bg-amber-50 text-amber-800 ring-amber-200'}`}>{flash}</p>
+      )}
 
-        {!status ? (
-          <p className="text-sm text-gray-400">Loading…</p>
-        ) : !status.available.google ? (
-          <p className="text-sm text-gray-500">Google is not configured on this server yet.</p>
-        ) : google ? (
-          <div className="flex items-center justify-between gap-4">
-            <div className="text-sm">
-              <p className="text-gray-900">{google.accountEmail ?? 'Connected account'}</p>
-              <p className={google.status === 'active' ? 'text-green-600' : 'text-amber-600'}>
-                {google.status === 'active' ? 'Connected' : 'Expired: reconnect to continue'}
-              </p>
-            </div>
-            <div className="flex gap-2">
-              {google.status !== 'active' && (
-                <button onClick={connect} disabled={busy} className="px-3 py-2 text-sm rounded-lg bg-gray-900 text-white disabled:opacity-50">Reconnect</button>
+      <section className="card p-6">
+        <p className="eyebrow mb-4">Integrations</p>
+        <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
+          <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white ring-1 ring-ink-200"><GoogleIcon size={22} /></span>
+          <div className="flex-1">
+            <h2 className="text-[15px] font-semibold text-ink-900">Google Calendar &amp; Gmail</h2>
+            <p className="mt-1 text-sm text-ink-500">
+              Lets Orga read your calendar, add events you approve, and search your email (read-only).
+            </p>
+
+            <div className="mt-5">
+              {!status ? (
+                <div className="skeleton h-10 w-48" />
+              ) : !status.available.google ? (
+                <p className="text-sm text-ink-500">Google is not configured on this server yet.</p>
+              ) : google ? (
+                <div className="flex flex-col gap-4 rounded-xl bg-ink-50 p-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="text-sm">
+                    <p className="font-medium text-ink-900">{google.accountEmail ?? 'Connected account'}</p>
+                    <p className={`mt-0.5 flex items-center gap-1.5 text-xs ${google.status === 'active' ? 'text-emerald-600' : 'text-amber-600'}`}>
+                      <span className={`h-1.5 w-1.5 rounded-full ${google.status === 'active' ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+                      {google.status === 'active' ? 'Connected' : 'Expired: reconnect to continue'}
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    {google.status !== 'active' && (
+                      <button onClick={connect} disabled={busy} className="btn btn-primary btn-sm">Reconnect</button>
+                    )}
+                    <button onClick={disconnect} disabled={busy} className="btn btn-secondary btn-sm">Disconnect</button>
+                  </div>
+                </div>
+              ) : (
+                <button onClick={connect} disabled={busy} className="btn btn-primary"><GoogleIcon size={16} /> Connect Google</button>
               )}
-              <button onClick={disconnect} disabled={busy} className="px-3 py-2 text-sm rounded-lg border border-gray-300 disabled:opacity-50">Disconnect</button>
             </div>
           </div>
-        ) : (
-          <button onClick={connect} disabled={busy} className="px-4 py-2 text-sm rounded-lg bg-gray-900 text-white disabled:opacity-50">
-            Connect Google
-          </button>
-        )}
+        </div>
+      </section>
+
+      <section className="card mt-6 flex gap-4 p-6">
+        <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 ring-1 ring-emerald-100"><ShieldIcon size={18} /></span>
+        <div className="text-sm text-ink-500">
+          <p className="font-medium text-ink-900">Your data stays yours</p>
+          <p className="mt-1">Tokens are stored encrypted and you can disconnect at any time. Orga asks for your approval before any action that changes something outside the app.</p>
+        </div>
       </section>
     </div>
   );

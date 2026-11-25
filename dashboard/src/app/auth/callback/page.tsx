@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
+import AuthShell from '@/components/AuthShell';
 
 // Receives the magic link. The token is in the URL fragment (#token=...), which
 // browsers never send to servers, and is removed from the address bar at once.
@@ -30,8 +31,11 @@ export default function AuthCallbackPage() {
   }, [router]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-      <p className={`text-sm ${error ? 'text-red-600' : 'text-gray-400'}`}>{error || 'Signing you in…'}</p>
-    </div>
+    <AuthShell>
+      <div className="flex flex-col items-center gap-3 text-center">
+        {!error && <span className="h-6 w-6 animate-spin rounded-full border-2 border-brand-200 border-t-brand-600" />}
+        <p className={`text-sm ${error ? 'text-rose-600' : 'text-ink-500'}`}>{error || 'Signing you in…'}</p>
+      </div>
+    </AuthShell>
   );
 }

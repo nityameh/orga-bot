@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
+import AuthShell from '@/components/AuthShell';
 
 type Channels = { telegram: string | null; whatsapp: string | null };
 
@@ -54,11 +55,11 @@ export default function InvitePage() {
   const hasChatApps = Boolean(telegramUrl || whatsappUrl);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-      <div className="w-full max-w-sm p-8 bg-white rounded-2xl shadow-sm text-center">
-        <p className="text-xs uppercase tracking-widest text-gray-400 mb-2">Invitation</p>
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">You&apos;re invited to Orga</h1>
-        <p className="text-sm text-gray-500 mb-6">
+    <AuthShell>
+      <div className="text-center">
+        <p className="eyebrow mb-2 text-brand-600">Invitation</p>
+        <h1 className="mb-2 text-2xl font-semibold tracking-tight text-ink-900">You&apos;re invited to Orga</h1>
+        <p className="mb-7 text-sm text-ink-500">
           A personal AI assistant for notes, tasks, reminders, your calendar and email,
           and for anything else you want to ask.
           {hasChatApps ? ' Pick where you want to chat with it.' : ' Chat with it right here.'}
@@ -67,33 +68,29 @@ export default function InvitePage() {
         {code && !error && (
           <div className="space-y-3">
             {telegramUrl && (
-              <a href={telegramUrl}
-                className="block w-full py-2.5 bg-[#229ED9] text-white text-sm font-medium rounded-lg hover:opacity-90">
+              <a href={telegramUrl} className="btn w-full bg-[#229ED9] py-2.5 text-white shadow-sm hover:opacity-90">
                 Continue on Telegram
               </a>
             )}
             {whatsappUrl && (
-              <a href={whatsappUrl}
-                className="block w-full py-2.5 bg-[#25D366] text-white text-sm font-medium rounded-lg hover:opacity-90">
+              <a href={whatsappUrl} className="btn w-full bg-[#25D366] py-2.5 text-white shadow-sm hover:opacity-90">
                 Continue on WhatsApp
               </a>
             )}
             <button onClick={acceptOnWeb} disabled={busy}
-              className={`w-full py-2.5 text-sm font-medium rounded-lg disabled:opacity-50 ${hasChatApps
-                ? 'border border-gray-300 text-gray-800 hover:bg-gray-50'
-                : 'bg-gray-900 text-white hover:bg-gray-800'}`}>
+              className={`btn w-full py-2.5 ${hasChatApps ? 'btn-secondary' : 'btn-primary'}`}>
               {busy ? 'Setting things up…' : hasChatApps ? 'Use on the web instead' : 'Accept invite'}
             </button>
             {hasChatApps && (
-              <p className="text-xs text-gray-400 pt-1">
+              <p className="pt-1 text-xs text-ink-400">
                 In Telegram tap <b>Start</b>; in WhatsApp just tap <b>send</b>. The invite works once.
               </p>
             )}
           </div>
         )}
-        {error && <p className="text-sm text-red-600">{error}</p>}
-        <p className="text-xs text-gray-400 mt-6">Already use Orga? Send /login in your Orga chat.</p>
+        {error && <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700 ring-1 ring-rose-200">{error}</p>}
+        <p className="mt-6 text-xs text-ink-400">Already use Orga? Send /login in your Orga chat.</p>
       </div>
-    </div>
+    </AuthShell>
   );
 }

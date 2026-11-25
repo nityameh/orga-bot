@@ -3,6 +3,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import type { TimelineItem } from '@/lib/types';
+import { EmptyState, PageHeader, Segmented } from '@/components/ui';
+import {
+  ActivityIcon, BellIcon, ChatIcon, CheckIcon, LinkIcon, NoteIcon, ShieldIcon, SparkIcon,
+} from '@/components/icons';
 
 const FILTERS: { label: string; kind?: string }[] = [
   { label: 'Everything' },
@@ -29,21 +33,39 @@ function label(kind: string) {
   return LABELS[kind] ?? kind.replace('.', ' ').replace(/_/g, ' ');
 }
 
+/** Icon and colour for each kind of event. */
+function kindStyle(kind: string): { icon: React.ReactNode; cls: string } {
+  if (kind === 'agent.turn') return { icon: <SparkIcon size={15} />, cls: 'bg-brand-50 text-brand-600 ring-brand-100' };
+  if (kind.startsWith('approval')) return { icon: <ShieldIcon size={15} />, cls: 'bg-emerald-50 text-emerald-600 ring-emerald-100' };
+  if (kind.startsWith('reminder')) return { icon: <BellIcon size={15} />, cls: 'bg-amber-50 text-amber-600 ring-amber-100' };
+  if (kind.startsWith('note')) return { icon: <NoteIcon size={15} />, cls: 'bg-sky-50 text-sky-600 ring-sky-100' };
+  if (kind.startsWith('message') || kind.startsWith('nudge')) return { icon: <ChatIcon size={15} />, cls: 'bg-teal-50 text-teal-600 ring-teal-100' };
+  if (kind.startsWith('auth')) return { icon: <LinkIcon size={15} />, cls: 'bg-ink-100 text-ink-600 ring-ink-200' };
+  return { icon: <ActivityIcon size={15} />, cls: 'bg-ink-100 text-ink-600 ring-ink-200' };
+}
+
 function Details({ item }: { item: TimelineItem }) {
   const d = item.details;
   if (!d) return null;
   if (item.kind === 'agent.turn') {
     const tools = (d.tools ?? []) as { name: string; ok: boolean; error?: string }[];
     return (
-      <p className="text-xs text-gray-400 mt-1">
-        {tools.length ? tools.map((t) => `${t.ok ? '✓' : '✗'} ${t.name.replace(/_/g, ' ')}`).join(' · ') : 'reply only'}
-        {' · '}{String(d.model ?? '')}
-        {d.latencyMs ? ` · ${(Number(d.latencyMs) / 1000).toFixed(1)}s` : ''}
-        {item.costMicros ? ` · $${(item.costMicros / 1e6).toFixed(4)}` : ''}
-      </p>
+      <div className="mt-2 flex flex-wrap items-center gap-1.5">
+        {tools.length ? tools.map((t, i) => (
+          <span key={`${t.name}-${i}`} title={t.error}
+            className={`chip ring-1 ${t.ok ? 'bg-emerald-50 text-emerald-700 ring-emerald-100' : 'bg-rose-50 text-rose-700 ring-rose-100'}`}>
+            {t.ok ? <CheckIcon size={11} /> : '✗'} {t.name.replace(/_/g, ' ')}
+          </span>
+        )) : <span className="chip">reply only</span>}
+        {d.model ? <span className="chip font-mono text-[11px]">{String(d.model)}</span> : null}
+        {d.latencyMs ? <span className="chip tabular-nums">{(Number(d.latencyMs) / 1000).toFixed(1)}s</span> : null}
+        {item.costMicros ? <span className="chip tabular-nums">${(item.costMicros / 1e6).toFixed(4)}</span> : null}
+      </div>
     );
   }
-  if (item.kind === 'nudge.sent') return <p className="text-xs text-gray-400 mt-1">Rule: {String(d.rule).replace(/_/g, ' ')}</p>;
+  if (item.kind === 'nudge.sent') {
+    return <p className="mt-1.5 text-xs text-ink-500">Rule: <span className="font-medium capitalize text-ink-700">{String(d.rule).replace(/_/g, ' ')}</span></p>;
+  }
   return null;
 }
 
@@ -68,47 +90,64 @@ export default function ActivityPage() {
 
   return (
     <div className="max-w-3xl">
-      <h1 className="text-xl font-bold text-gray-900 mb-1">Activity</h1>
-      <p className="text-sm text-gray-500 mb-6">Everything Orga did on your behalf, and why. Message text is never stored here.</p>
+      <PageHeader
+        title="Activity"
+        subtitle="Everything Orga did on your behalf, and why. Message text is never stored here."
+      />
 
-      <div className="flex flex-wrap gap-2 mb-6">
-        {FILTERS.map((f) => (
-          <button key={f.label} onClick={() => setKind(f.kind)}
-            className={`px-3 py-1 text-sm rounded-lg ${f.kind === kind ? 'bg-gray-900 text-white' : 'bg-white border border-gray-200 text-gray-600'}`}>
-            {f.label}
-          </button>
-        ))}
+      <div className="mb-6">
+        <Segmented label="Filter activity" value={kind ?? ''} onChange={(v) => setKind(v || undefined)}
+          options={FILTERS.map((f) => ({ value: f.kind ?? '', label: f.label }))} />
       </div>
 
       {!items ? (
-        <p className="text-gray-400 text-sm">Loading…</p>
+        <div className="space-y-3" aria-busy="true" aria-label="Loading">
+          {Array.from({ length: 6 }, (_, i) => <div key={i} className="skeleton h-20 rounded-2xl" />)}
+        </div>
       ) : items.length === 0 ? (
-        <p className="text-gray-400 text-sm">Nothing here yet.</p>
+        <EmptyState icon={<ActivityIcon size={18} />} title="Nothing here yet"
+          hint="Actions appear here as soon as you message Orga." />
       ) : (
-        <ol className="space-y-2">
-          {items.map((item) => (
-            <li key={item.id} className="bg-white rounded-lg border border-gray-200 px-4 py-3">
-              <div className="flex justify-between gap-4">
-                <p className="text-sm text-gray-900">
-                  {label(item.kind)}
-                  {item.summary && <span className="text-gray-500">: {item.summary}</span>}
-                  {item.person && <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 capitalize">{item.person}</span>}
-                </p>
-                <time className="text-xs text-gray-400 shrink-0" dateTime={item.createdAt}>
-                  {new Date(item.createdAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}
-                </time>
-              </div>
-              <Details item={item} />
-              {item.channel && <p className="text-[10px] text-gray-300 mt-1">{item.channel}{item.traceId ? ` · trace ${item.traceId}` : ''}</p>}
-            </li>
-          ))}
+        <ol className="relative space-y-3 animate-fade-up">
+          <span className="absolute bottom-4 left-[19px] top-4 w-px bg-ink-200" aria-hidden="true" />
+          {items.map((item) => {
+            const s = kindStyle(item.kind);
+            return (
+              <li key={item.id} className="relative flex gap-4">
+                <span className={`relative z-[1] mt-3 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ring-1 ${s.cls}`}>
+                  {s.icon}
+                </span>
+                <div className="card flex-1 px-4 py-3">
+                  <div className="flex items-start justify-between gap-4">
+                    <p className="text-sm text-ink-900">
+                      <span className="font-medium">{label(item.kind)}</span>
+                      {item.summary && <span className="text-ink-500">: {item.summary}</span>}
+                      {item.person && <span className="chip ml-2 capitalize">{item.person}</span>}
+                    </p>
+                    <time className="shrink-0 text-xs text-ink-400" dateTime={item.createdAt}>
+                      {new Date(item.createdAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })}
+                    </time>
+                  </div>
+                  <Details item={item} />
+                  {item.channel && (
+                    <p className="mt-2 text-[11px] text-ink-400">
+                      via <span className="capitalize">{item.channel}</span>
+                      {item.traceId && <> · trace <span className="font-mono">{item.traceId}</span></>}
+                    </p>
+                  )}
+                </div>
+              </li>
+            );
+          })}
         </ol>
       )}
 
       {next && (
-        <button onClick={() => load(next)} disabled={loading} className="mt-4 px-4 py-2 text-sm rounded-lg border border-gray-300 disabled:opacity-50">
-          {loading ? 'Loading…' : 'Load more'}
-        </button>
+        <div className="mt-6 flex justify-center">
+          <button onClick={() => load(next)} disabled={loading} className="btn btn-secondary">
+            {loading ? 'Loading…' : 'Load more'}
+          </button>
+        </div>
       )}
     </div>
   );
