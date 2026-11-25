@@ -195,7 +195,7 @@ export default function InsightsPage() {
             <ActivityChart series={overview.series} />
           </Section>
 
-          <div className="mb-6 grid gap-6 lg:grid-cols-2">
+          <div className="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
             <Section title="When you message Orga" description="IST, by weekday and hour">
               <Heatmap grid={overview.heatmap} />
             </Section>

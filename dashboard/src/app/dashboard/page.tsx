@@ -61,7 +61,7 @@ export default function DashboardHome() {
         <div className="mb-8 grid grid-cols-2 gap-4 lg:grid-cols-4">
           {Array.from({ length: 4 }, (_, i) => <div key={i} className="skeleton h-32 rounded-2xl" />)}
         </div>
-        <div className="grid gap-6 lg:grid-cols-5">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
           <div className="skeleton h-72 rounded-2xl lg:col-span-3" />
           <div className="skeleton h-72 rounded-2xl lg:col-span-2" />
         </div>
@@ -100,7 +100,7 @@ export default function DashboardHome() {
         </Link>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-5">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
         <Section
           className="lg:col-span-3"
           title="Up next"
@@ -158,7 +158,7 @@ export default function DashboardHome() {
           {data.notes.length === 0 ? (
             <p className="rounded-xl bg-ink-50 px-4 py-6 text-center text-sm text-ink-500">No notes yet.</p>
           ) : (
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               {data.notes.map((n) => (
                 <Link key={n.id} href={`/dashboard/notes/${n.id}`}
                   className="rounded-xl p-4 ring-1 ring-ink-100 transition hover:bg-ink-50 hover:ring-ink-200">

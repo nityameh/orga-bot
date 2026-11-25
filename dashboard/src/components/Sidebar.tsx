@@ -77,7 +77,7 @@ export default function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col justify-between border-r border-ink-200/70 bg-white/80 px-4 py-5 backdrop-blur md:flex">
+    <aside className="sticky top-0 hidden h-screen w-56 shrink-0 lg:w-64 flex-col justify-between border-r border-ink-200/70 bg-white/80 px-4 py-5 backdrop-blur md:flex">
       <div>
         <div className="mb-8 px-2"><Logo /></div>
         <nav className="space-y-6">

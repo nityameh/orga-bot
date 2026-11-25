@@ -58,6 +58,11 @@
   }
   ::selection { @apply bg-brand-200 text-brand-900; }
   :focus-visible { @apply outline-2 outline-offset-2 outline-brand-500; }
+
+  /* Respect "reduce motion": content must never depend on an animation to become visible. */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+  }
 }
 
 @layer components {
@@ -73,7 +78,7 @@
 
   /* Buttons */
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-medium
+    @apply inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl px-4 py-2 text-sm font-medium
       transition duration-150 disabled:cursor-not-allowed disabled:opacity-50;
   }
   .btn-sm { @apply px-3 py-1.5 text-xs rounded-lg; }
