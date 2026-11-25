@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import { Note } from '@/lib/types';
+import { Tag, formatIST } from '@/components/ui';
+import { ArchiveIcon, ArrowLeftIcon, ClockIcon, EditIcon, PinIcon, TrashIcon } from '@/components/icons';
 
 export default function NoteDetailPage() {
   const params = useParams();
@@ -54,129 +56,83 @@ export default function NoteDetailPage() {
 
   if (loading) {
     return (
-      <div className="max-w-3xl mx-auto py-12">
-        <p className="text-gray-400 text-sm">Loading...</p>
+      <div className="mx-auto max-w-3xl" aria-busy="true" aria-label="Loading">
+        <div className="skeleton mb-8 h-8 w-32" />
+        <div className="skeleton h-96 rounded-2xl" />
       </div>
     );
   }
 
   if (!note) {
-    return (
-      <div className="max-w-3xl mx-auto py-12">
-        <p className="text-gray-400">Note not found</p>
-      </div>
-    );
+    return <div className="mx-auto max-w-3xl py-12"><p className="text-ink-400">Note not found</p></div>;
   }
 
   return (
-    <div className="max-w-3xl mx-auto">
+    <div className="mx-auto max-w-3xl">
       {/* Top bar */}
-      <div className="flex items-center justify-between mb-8">
-        <button
-          onClick={() => router.push('/dashboard/notes')}
-          className="text-sm text-gray-400 hover:text-gray-600"
-        >
-          ← Back to notes
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-2">
+        <button onClick={() => router.push('/dashboard/notes')} className="btn btn-ghost btn-sm -ml-3">
+          <ArrowLeftIcon size={14} /> Notes
         </button>
 
-        <div className="flex items-center gap-3">
-          <button
-            onClick={handlePin}
-            className={`text-sm px-3 py-1 rounded-lg ${note.pinned ? 'bg-amber-50 text-amber-600' : 'text-gray-400 hover:text-gray-600'}`}
-          >
-            {note.pinned ? '★ Pinned' : '☆ Pin'}
+        {/* Labels collapse to icons on phones so the bar never overflows */}
+        <div className="flex items-center gap-1">
+          <button onClick={handlePin} aria-label={note.pinned ? 'Unpin note' : 'Pin note'}
+            className={`btn btn-sm ${note.pinned ? 'bg-amber-50 text-amber-600 ring-1 ring-amber-200' : 'btn-ghost'}`}>
+            <PinIcon size={14} /> <span className="hidden sm:inline">{note.pinned ? 'Pinned' : 'Pin'}</span>
           </button>
-          <button
-            onClick={handleArchive}
-            className="text-sm text-gray-400 hover:text-gray-600"
-          >
-            {note.archivedAt ? 'Unarchive' : 'Archive'}
+          {!editing && (
+            <button onClick={() => setEditing(true)} className="btn btn-ghost btn-sm" aria-label="Edit note">
+              <EditIcon size={14} /> <span className="hidden sm:inline">Edit</span>
+            </button>
+          )}
+          <button onClick={handleArchive} className="btn btn-ghost btn-sm" aria-label={note.archivedAt ? 'Unarchive note' : 'Archive note'}>
+            <ArchiveIcon size={14} /> <span className="hidden sm:inline">{note.archivedAt ? 'Unarchive' : 'Archive'}</span>
           </button>
-          <button
-            onClick={handleDelete}
-            className="text-sm text-gray-400 hover:text-red-500"
-          >
-            Delete
+          <button onClick={handleDelete} className="btn btn-danger btn-sm" aria-label="Delete note">
+            <TrashIcon size={14} /> <span className="hidden sm:inline">Delete</span>
           </button>
         </div>
       </div>
 
-      {/* Title */}
-      {editing ? (
-        <input
-          type="text"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          className="w-full text-2xl font-bold text-gray-900 mb-4 px-0 py-2 border-b border-gray-200 focus:outline-none focus:border-gray-900"
-          autoFocus
-        />
-      ) : (
-        <h1
-          className="text-2xl font-bold text-gray-900 mb-4 cursor-pointer hover:text-gray-700"
-          onClick={() => setEditing(true)}
-        >
-          {note.title}
-        </h1>
-      )}
+      <article className="card px-5 py-6 sm:px-10 sm:py-8 animate-fade-up">
+        {/* Title */}
+        {editing ? (
+          <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} aria-label="Title"
+            className="mb-4 w-full border-b border-ink-200 bg-transparent py-2 text-3xl font-semibold tracking-tight text-ink-900 focus:border-brand-500 focus:outline-none"
+            autoFocus />
+        ) : (
+          <h1 className="mb-4 cursor-text text-2xl font-semibold tracking-tight text-ink-900 sm:text-3xl" onClick={() => setEditing(true)}>
+            {note.title}
+          </h1>
+        )}
 
-      {/* Meta */}
-      <div className="flex items-center gap-3 mb-6 text-xs text-gray-400">
-        <span>{new Date(note.createdAt).toLocaleString('en-IN', {
-          weekday: 'short', month: 'short', day: 'numeric', year: 'numeric',
-          hour: '2-digit', minute: '2-digit',
-          timeZone: 'Asia/Kolkata', hour12: true,
-        })}</span>
-        {note.client && <span className="px-2 py-0.5 bg-gray-100 rounded-full">{note.client}</span>}
-      </div>
+        {/* Meta */}
+        <div className="mb-6 flex flex-wrap items-center gap-2 text-xs text-ink-400">
+          <span className="flex items-center gap-1.5"><ClockIcon size={13} /> {formatIST(note.createdAt, { year: 'numeric' })}</span>
+          {note.client && <span className="chip capitalize">{note.client}</span>}
+          {note.tags.map(tag => <Tag key={tag}>{tag}</Tag>)}
+        </div>
 
-      {/* Tags */}
-      {note.tags.length > 0 && (
-        <div className="flex flex-wrap gap-2 mb-6">
-          {note.tags.map(tag => (
-            <span key={tag} className="px-2.5 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">
-              {tag}
-            </span>
-          ))}
+        <div className="border-t border-ink-100 pt-6">
+          {editing ? (
+            <div>
+              <textarea value={body} onChange={(e) => setBody(e.target.value)} aria-label="Note body"
+                className="min-h-[300px] w-full resize-none bg-transparent text-[15px] leading-relaxed text-ink-700 focus:outline-none"
+                placeholder="Write your note here..." />
+              <div className="mt-4 flex gap-2 border-t border-ink-100 pt-4">
+                <button onClick={handleSave} disabled={saving} className="btn btn-primary">{saving ? 'Saving…' : 'Save changes'}</button>
+                <button onClick={() => { setTitle(note.title); setBody(note.body || ''); setEditing(false); }} className="btn btn-ghost">Cancel</button>
+              </div>
+            </div>
+          ) : (
+            <div className="-m-3 min-h-[200px] cursor-text whitespace-pre-wrap rounded-xl p-3 text-[15px] leading-relaxed text-ink-700 transition hover:bg-ink-50"
+              onClick={() => setEditing(true)}>
+              {note.body || <span className="text-ink-300">Click to add content…</span>}
+            </div>
+          )}
         </div>
-      )}
-
-      {/* Body */}
-      {editing ? (
-        <div>
-          <textarea
-            value={body}
-            onChange={(e) => setBody(e.target.value)}
-            className="w-full min-h-[300px] text-gray-700 text-sm leading-relaxed px-0 py-2 border-none focus:outline-none resize-none"
-            placeholder="Write your note here..."
-          />
-          <div className="flex gap-3 mt-4 pt-4 border-t border-gray-100">
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              className="px-4 py-2 bg-gray-900 text-white text-sm rounded-lg hover:bg-gray-800 disabled:opacity-50"
-            >
-              {saving ? 'Saving...' : 'Save'}
-            </button>
-            <button
-              onClick={() => {
-                setTitle(note.title);
-                setBody(note.body || '');
-                setEditing(false);
-              }}
-              className="px-4 py-2 text-gray-500 text-sm"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      ) : (
-        <div
-          className="text-gray-700 text-sm leading-relaxed whitespace-pre-wrap min-h-[200px] cursor-pointer hover:bg-gray-50 rounded-lg p-2 -m-2"
-          onClick={() => setEditing(true)}
-        >
-          {note.body || <span className="text-gray-300">Click to add content...</span>}
-        </div>
-      )}
+      </article>
     </div>
   );
 }

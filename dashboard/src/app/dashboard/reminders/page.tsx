@@ -3,15 +3,30 @@
 import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { Reminder } from '@/lib/types';
+import { EmptyState, PageHeader, Segmented, SkeletonCards } from '@/components/ui';
+import { BellIcon, CheckIcon, PlusIcon, TrashIcon } from '@/components/icons';
 
 const STATUS_TABS = ['all', 'pending', 'fired', 'done', 'snoozed'] as const;
 
-const STATUS_COLORS: Record<string, string> = {
-  pending: 'bg-amber-100 text-amber-700',
-  fired: 'bg-red-100 text-red-700',
-  done: 'bg-green-100 text-green-700',
-  snoozed: 'bg-blue-100 text-blue-700',
+const STATUS_STYLES: Record<string, string> = {
+  pending: 'bg-amber-50 text-amber-700 ring-amber-200',
+  fired: 'bg-rose-50 text-rose-700 ring-rose-200',
+  done: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
+  snoozed: 'bg-sky-50 text-sky-700 ring-sky-200',
 };
+
+/** Calendar-style date tile in IST. */
+function DateTile({ iso }: { iso: string }) {
+  const d = new Date(iso);
+  const part = (o: Intl.DateTimeFormatOptions) => d.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', ...o });
+  return (
+    <div className="flex w-14 shrink-0 flex-col items-center overflow-hidden rounded-xl ring-1 ring-ink-200">
+      <span className="w-full bg-brand-600 py-0.5 text-center text-[10px] font-semibold uppercase tracking-wide text-white">{part({ month: 'short' })}</span>
+      <span className="py-1 text-lg font-semibold leading-none text-ink-900">{part({ day: 'numeric' })}</span>
+      <span className="pb-1 text-[10px] text-ink-400">{part({ weekday: 'short' })}</span>
+    </div>
+  );
+}
 
 export default function RemindersPage() {
   const [reminders, setReminders] = useState<Reminder[]>([]);
@@ -54,98 +69,66 @@ export default function RemindersPage() {
   };
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-xl font-bold text-gray-900">Reminders</h1>
-        <button
-          onClick={() => setShowNewForm(!showNewForm)}
-          className="px-4 py-2 bg-gray-900 text-white text-sm rounded-lg hover:bg-gray-800"
-        >
-          + New Reminder
-        </button>
-      </div>
+    <div className="max-w-4xl">
+      <PageHeader
+        title="Reminders"
+        subtitle="Orga messages you at the right time, in IST."
+        actions={
+          <button onClick={() => setShowNewForm(!showNewForm)} className="btn btn-primary">
+            <PlusIcon size={16} /> New reminder
+          </button>
+        }
+      />
 
       {showNewForm && (
-        <div className="bg-white border border-gray-200 rounded-xl p-4 mb-6">
-          <input
-            type="text"
-            placeholder="What to remember (e.g. Call Ravi about proposal)"
-            value={newTitle}
-            onChange={(e) => setNewTitle(e.target.value)}
-            className="w-full font-medium text-sm mb-2 px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900"
-            autoFocus
-          />
-          <div className="flex gap-2 mb-3">
-            <input
-              type="date"
-              value={newDate}
-              onChange={(e) => setNewDate(e.target.value)}
-              className="flex-1 text-sm px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900"
-            />
-            <input
-              type="time"
-              value={newTime}
-              onChange={(e) => setNewTime(e.target.value)}
-              className="w-32 text-sm px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900"
-            />
-          </div>
+        <div className="card mb-6 space-y-3 p-5 animate-fade-up">
+          <input type="text" placeholder="What to remember (e.g. Call Ravi about proposal)" value={newTitle}
+            onChange={(e) => setNewTitle(e.target.value)} className="input font-medium" autoFocus />
           <div className="flex gap-2">
-            <button onClick={handleCreateReminder} className="px-4 py-2 bg-gray-900 text-white text-sm rounded-lg hover:bg-gray-800">Save</button>
-            <button onClick={() => setShowNewForm(false)} className="px-4 py-2 text-gray-500 text-sm">Cancel</button>
+            <input type="date" value={newDate} onChange={(e) => setNewDate(e.target.value)} className="input flex-1" aria-label="Date" />
+            <input type="time" value={newTime} onChange={(e) => setNewTime(e.target.value)} className="input w-36" aria-label="Time" />
+          </div>
+          <div className="flex gap-2 pt-1">
+            <button onClick={handleCreateReminder} className="btn btn-primary">Save reminder</button>
+            <button onClick={() => setShowNewForm(false)} className="btn btn-ghost">Cancel</button>
           </div>
         </div>
       )}
 
-      <div className="flex gap-2 mb-6">
-        {STATUS_TABS.map(tab => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`px-3 py-1.5 text-xs rounded-lg capitalize transition-colors ${
-              activeTab === tab
-                ? 'bg-gray-900 text-white'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-            }`}
-          >
-            {tab}
-          </button>
-        ))}
+      <div className="mb-6">
+        <Segmented label="Filter by status" value={activeTab} onChange={setActiveTab}
+          options={STATUS_TABS.map((t) => ({ value: t, label: t }))} />
       </div>
 
       {loading ? (
-        <p className="text-gray-400 text-sm">Loading...</p>
+        <SkeletonCards count={4} height="h-20" cols="" />
       ) : reminders.length === 0 ? (
-        <div className="text-center py-16 text-gray-400">
-          <p className="text-lg mb-2">No reminders</p>
-          <p className="text-sm">Send "remind me tomorrow 9am to call Ravi" on WhatsApp.</p>
-        </div>
+        <EmptyState icon={<BellIcon size={18} />} title={activeTab === 'all' ? 'No reminders' : `No ${activeTab} reminders`}
+          hint={<>Send <span className="font-mono text-ink-700">remind me tomorrow 9am to call Ravi</span> on WhatsApp.</>} />
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-3 animate-fade-up">
           {reminders.map(reminder => (
-            <div key={reminder.id} className="bg-white border border-gray-200 rounded-xl p-4 flex items-center justify-between">
-              <div>
-                <h3 className="font-medium text-sm text-gray-900">{reminder.title}</h3>
-                <p className="text-xs text-gray-400 mt-1">
-                  {new Date(reminder.fireAt).toLocaleString('en-IN', {
-                    weekday: 'short', month: 'short', day: 'numeric',
-                    hour: '2-digit', minute: '2-digit',
-                    timeZone: 'Asia/Kolkata', hour12: true,
-                  })}
+            <div key={reminder.id} className="card card-hover group flex items-center gap-4 p-4">
+              <DateTile iso={reminder.fireAt} />
+              <div className="min-w-0 flex-1">
+                <h3 className={`line-clamp-2 text-[15px] font-semibold sm:line-clamp-1 ${reminder.status === 'done' ? 'text-ink-400 line-through' : 'text-ink-900'}`}>
+                  {reminder.title}
+                </h3>
+                <p className="mt-1 flex flex-wrap items-center gap-2 text-xs text-ink-400">
+                  {new Date(reminder.fireAt).toLocaleString('en-IN', { hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Kolkata', hour12: true })} IST
+                  {/* On phones the status sits under the title so the title keeps its width */}
+                  <span className={`chip capitalize ring-1 sm:hidden ${STATUS_STYLES[reminder.status] || ''}`}>{reminder.status}</span>
                 </p>
               </div>
 
-              <div className="flex items-center gap-3">
-                <span className={`px-2 py-0.5 text-xs rounded-full ${STATUS_COLORS[reminder.status] || 'bg-gray-100'}`}>
-                  {reminder.status}
-                </span>
+              <span className={`chip hidden capitalize ring-1 sm:inline-flex ${STATUS_STYLES[reminder.status] || ''}`}>{reminder.status}</span>
+              <div className="flex gap-1">
                 {reminder.status !== 'done' && (
-                  <button onClick={() => markDone(reminder.id)} className="text-xs text-gray-400 hover:text-green-600">
-                    done
-                  </button>
+                  <button onClick={() => markDone(reminder.id)} className="btn btn-sm p-2 text-ink-400 hover:bg-emerald-50 hover:text-emerald-600"
+                    title="Mark done" aria-label="Mark reminder done"><CheckIcon size={15} /></button>
                 )}
-                <button onClick={() => deleteReminder(reminder.id)} className="text-xs text-gray-400 hover:text-red-500">
-                  delete
-                </button>
+                <button onClick={() => deleteReminder(reminder.id)} className="btn btn-danger btn-sm p-2"
+                  title="Delete" aria-label="Delete reminder"><TrashIcon size={15} /></button>
               </div>
             </div>
           ))}

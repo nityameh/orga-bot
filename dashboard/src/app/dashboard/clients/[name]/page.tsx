@@ -5,6 +5,8 @@ import { useParams } from 'next/navigation';
 import { api } from '@/lib/api';
 import { Note, Task, Reminder } from '@/lib/types';
 import Link from 'next/link';
+import { Avatar, Section, formatIST, plural, timeAgo } from '@/components/ui';
+import { ArrowLeftIcon, BellIcon, CheckIcon, ClockIcon, NoteIcon, TaskIcon } from '@/components/icons';
 
 interface ClientData {
   name: string;
@@ -28,95 +30,99 @@ export default function ClientDetailPage() {
     load();
   }, [name]);
 
-  if (loading) return <p className="text-gray-400 text-sm">Loading...</p>;
-  if (!data) return <p className="text-gray-400 text-sm">Not found</p>;
+  if (loading) {
+    return (
+      <div aria-busy="true" aria-label="Loading">
+        <div className="skeleton mb-8 h-16 w-72 rounded-2xl" />
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <div className="skeleton h-64 rounded-2xl" />
+          <div className="skeleton h-64 rounded-2xl" />
+        </div>
+      </div>
+    );
+  }
+  if (!data) return <p className="text-sm text-ink-400">Not found</p>;
 
   return (
     <div>
-      <div className="flex items-center gap-3 mb-6">
-        <Link href="/dashboard/clients" className="text-gray-400 hover:text-gray-600 text-sm">
-          ← Clients
-        </Link>
-        <h1 className="text-xl font-bold text-gray-900 capitalize">{data.name}</h1>
+      <Link href="/dashboard/clients" className="btn btn-ghost btn-sm mb-6 -ml-3">
+        <ArrowLeftIcon size={14} /> Clients
+      </Link>
+
+      <div className="mb-8 flex items-center gap-4 animate-fade-up">
+        <Avatar name={data.name} size="lg" />
+        <div>
+          <h1 className="text-2xl font-semibold capitalize tracking-tight text-ink-900">{data.name}</h1>
+          <p className="mt-1 text-sm text-ink-500">
+            {plural(data.notes.length, 'note')} · {plural(data.tasks.length, 'task list')} · {plural(data.reminders.length, 'reminder')}
+          </p>
+        </div>
       </div>
 
-      {/* Notes */}
-      <Section title={`Notes (${data.notes.length})`}>
-        {data.notes.length === 0 ? (
-          <p className="text-sm text-gray-400">No notes for {data.name}</p>
-        ) : (
-          data.notes.map(note => (
-            <div key={note.id} className="bg-white border border-gray-200 rounded-lg p-3 mb-2">
-              <p className="text-sm font-medium text-gray-900">{note.title}</p>
-              {note.body && note.body !== note.title && (
-                <p className="text-xs text-gray-500 mt-1 line-clamp-2">{note.body}</p>
-              )}
-              <p className="text-xs text-gray-400 mt-2">{timeAgo(note.createdAt)}</p>
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 animate-fade-up">
+        <Section title="Notes" className="lg:row-span-2" action={<span className="chip">{data.notes.length}</span>}>
+          {data.notes.length === 0 ? (
+            <p className="text-sm text-ink-400">No notes for {data.name}</p>
+          ) : (
+            <div className="space-y-2">
+              {data.notes.map(note => (
+                <Link key={note.id} href={`/dashboard/notes/${note.id}`}
+                  className="flex gap-3 rounded-xl p-3 ring-1 ring-ink-100 transition hover:bg-ink-50 hover:ring-ink-200">
+                  <span className="mt-0.5 text-sky-500"><NoteIcon size={16} /></span>
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-ink-900">{note.title}</p>
+                    {note.body && note.body !== note.title && <p className="mt-1 line-clamp-2 text-xs text-ink-500">{note.body}</p>}
+                    <p className="mt-1.5 text-[11px] text-ink-400">{timeAgo(note.createdAt)}</p>
+                  </div>
+                </Link>
+              ))}
             </div>
-          ))
-        )}
-      </Section>
+          )}
+        </Section>
 
-      {/* Tasks */}
-      <Section title={`Tasks (${data.tasks.length})`}>
-        {data.tasks.length === 0 ? (
-          <p className="text-sm text-gray-400">No tasks for {data.name}</p>
-        ) : (
-          data.tasks.map(task => (
-            <div key={task.id} className="bg-white border border-gray-200 rounded-lg p-3 mb-2">
-              <p className="text-sm font-medium text-gray-900">{task.title}</p>
-              <div className="mt-2 space-y-1">
-                {task.items.map(item => (
-                  <p key={item.id} className={`text-xs ${item.done ? 'text-gray-400 line-through' : 'text-gray-600'}`}>
-                    {item.done ? '✓' : '○'} {item.text}
-                  </p>
-                ))}
-              </div>
+        <Section title="Tasks" action={<span className="chip">{data.tasks.length}</span>}>
+          {data.tasks.length === 0 ? (
+            <p className="text-sm text-ink-400">No tasks for {data.name}</p>
+          ) : (
+            <div className="space-y-4">
+              {data.tasks.map(task => (
+                <div key={task.id}>
+                  <p className="mb-2 flex items-center gap-2 text-sm font-medium text-ink-900"><span className="text-emerald-500"><TaskIcon size={16} /></span>{task.title}</p>
+                  <ul className="space-y-1.5 pl-6">
+                    {task.items.map(item => (
+                      <li key={item.id} className={`flex items-center gap-2 text-sm ${item.done ? 'text-ink-400 line-through' : 'text-ink-600'}`}>
+                        <span className={`flex h-4 w-4 items-center justify-center rounded ring-1 ${item.done ? 'bg-brand-600 text-white ring-brand-600' : 'ring-ink-300'}`}>
+                          {item.done && <CheckIcon size={11} strokeWidth={2.5} />}
+                        </span>
+                        {item.text}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
             </div>
-          ))
-        )}
-      </Section>
+          )}
+        </Section>
 
-      {/* Reminders */}
-      <Section title={`Reminders (${data.reminders.length})`}>
-        {data.reminders.length === 0 ? (
-          <p className="text-sm text-gray-400">No reminders for {data.name}</p>
-        ) : (
-          data.reminders.map(reminder => (
-            <div key={reminder.id} className="bg-white border border-gray-200 rounded-lg p-3 mb-2 flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-900">{reminder.title}</p>
-                <p className="text-xs text-gray-400 mt-1">
-                  {new Date(reminder.fireAt).toLocaleString('en-IN', {
-                    weekday: 'short', month: 'short', day: 'numeric',
-                    hour: '2-digit', minute: '2-digit',
-                    timeZone: 'Asia/Kolkata', hour12: true,
-                  })}
-                </p>
-              </div>
-              <span className="text-xs text-gray-400">{reminder.status}</span>
+        <Section title="Reminders" action={<span className="chip">{data.reminders.length}</span>}>
+          {data.reminders.length === 0 ? (
+            <p className="text-sm text-ink-400">No reminders for {data.name}</p>
+          ) : (
+            <div className="space-y-2">
+              {data.reminders.map(reminder => (
+                <div key={reminder.id} className="flex items-center gap-3 rounded-xl p-3 ring-1 ring-ink-100">
+                  <span className="text-amber-500"><BellIcon size={16} /></span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-ink-900">{reminder.title}</p>
+                    <p className="mt-0.5 flex items-center gap-1 text-xs text-ink-400"><ClockIcon size={11} /> {formatIST(reminder.fireAt)}</p>
+                  </div>
+                  <span className="chip capitalize">{reminder.status}</span>
+                </div>
+              ))}
             </div>
-          ))
-        )}
-      </Section>
+          )}
+        </Section>
+      </div>
     </div>
   );
-}
-
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div className="mb-8">
-      <h2 className="text-sm font-medium text-gray-500 mb-3">{title}</h2>
-      {children}
-    </div>
-  );
-}
-
-function timeAgo(dateStr: string): string {
-  const seconds = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
-  if (seconds < 60) return 'just now';
-  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
-  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
-  if (seconds < 604800) return `${Math.floor(seconds / 86400)}d ago`;
-  return new Date(dateStr).toLocaleDateString('en-IN');
 }
