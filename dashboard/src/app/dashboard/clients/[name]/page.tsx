@@ -5,7 +5,7 @@ import { useParams } from 'next/navigation';
 import { api } from '@/lib/api';
 import { Note, Task, Reminder } from '@/lib/types';
 import Link from 'next/link';
-import { Avatar, Section, formatIST, timeAgo } from '@/components/ui';
+import { Avatar, Section, formatIST, plural, timeAgo } from '@/components/ui';
 import { ArrowLeftIcon, BellIcon, CheckIcon, ClockIcon, NoteIcon, TaskIcon } from '@/components/icons';
 
 interface ClientData {
@@ -34,7 +34,7 @@ export default function ClientDetailPage() {
     return (
       <div aria-busy="true" aria-label="Loading">
         <div className="skeleton mb-8 h-16 w-72 rounded-2xl" />
-        <div className="grid gap-6 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           <div className="skeleton h-64 rounded-2xl" />
           <div className="skeleton h-64 rounded-2xl" />
         </div>
@@ -54,12 +54,12 @@ export default function ClientDetailPage() {
         <div>
           <h1 className="text-2xl font-semibold capitalize tracking-tight text-ink-900">{data.name}</h1>
           <p className="mt-1 text-sm text-ink-500">
-            {data.notes.length} notes · {data.tasks.length} task lists · {data.reminders.length} reminders
+            {plural(data.notes.length, 'note')} · {plural(data.tasks.length, 'task list')} · {plural(data.reminders.length, 'reminder')}
           </p>
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2 animate-fade-up">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 animate-fade-up">
         <Section title="Notes" className="lg:row-span-2" action={<span className="chip">{data.notes.length}</span>}>
           {data.notes.length === 0 ? (
             <p className="text-sm text-ink-400">No notes for {data.name}</p>

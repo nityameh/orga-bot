@@ -70,32 +70,39 @@ export default function NoteDetailPage() {
   return (
     <div className="mx-auto max-w-3xl">
       {/* Top bar */}
-      <div className="mb-6 flex items-center justify-between gap-3">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-2">
         <button onClick={() => router.push('/dashboard/notes')} className="btn btn-ghost btn-sm -ml-3">
           <ArrowLeftIcon size={14} /> Notes
         </button>
 
+        {/* Labels collapse to icons on phones so the bar never overflows */}
         <div className="flex items-center gap-1">
-          <button onClick={handlePin}
+          <button onClick={handlePin} aria-label={note.pinned ? 'Unpin note' : 'Pin note'}
             className={`btn btn-sm ${note.pinned ? 'bg-amber-50 text-amber-600 ring-1 ring-amber-200' : 'btn-ghost'}`}>
-            <PinIcon size={14} /> {note.pinned ? 'Pinned' : 'Pin'}
+            <PinIcon size={14} /> <span className="hidden sm:inline">{note.pinned ? 'Pinned' : 'Pin'}</span>
           </button>
-          {!editing && <button onClick={() => setEditing(true)} className="btn btn-ghost btn-sm"><EditIcon size={14} /> Edit</button>}
-          <button onClick={handleArchive} className="btn btn-ghost btn-sm">
-            <ArchiveIcon size={14} /> {note.archivedAt ? 'Unarchive' : 'Archive'}
+          {!editing && (
+            <button onClick={() => setEditing(true)} className="btn btn-ghost btn-sm" aria-label="Edit note">
+              <EditIcon size={14} /> <span className="hidden sm:inline">Edit</span>
+            </button>
+          )}
+          <button onClick={handleArchive} className="btn btn-ghost btn-sm" aria-label={note.archivedAt ? 'Unarchive note' : 'Archive note'}>
+            <ArchiveIcon size={14} /> <span className="hidden sm:inline">{note.archivedAt ? 'Unarchive' : 'Archive'}</span>
           </button>
-          <button onClick={handleDelete} className="btn btn-danger btn-sm"><TrashIcon size={14} /> Delete</button>
+          <button onClick={handleDelete} className="btn btn-danger btn-sm" aria-label="Delete note">
+            <TrashIcon size={14} /> <span className="hidden sm:inline">Delete</span>
+          </button>
         </div>
       </div>
 
-      <article className="card px-8 py-8 sm:px-10 animate-fade-up">
+      <article className="card px-5 py-6 sm:px-10 sm:py-8 animate-fade-up">
         {/* Title */}
         {editing ? (
           <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} aria-label="Title"
             className="mb-4 w-full border-b border-ink-200 bg-transparent py-2 text-3xl font-semibold tracking-tight text-ink-900 focus:border-brand-500 focus:outline-none"
             autoFocus />
         ) : (
-          <h1 className="mb-4 cursor-text text-3xl font-semibold tracking-tight text-ink-900" onClick={() => setEditing(true)}>
+          <h1 className="mb-4 cursor-text text-2xl font-semibold tracking-tight text-ink-900 sm:text-3xl" onClick={() => setEditing(true)}>
             {note.title}
           </h1>
         )}

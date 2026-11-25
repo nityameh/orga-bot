@@ -9,7 +9,8 @@ export function PageHeader({ title, subtitle, actions, eyebrow }: {
   eyebrow?: ReactNode;
 }) {
   return (
-    <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between animate-fade-up">
+    // Side-by-side only from lg: below that the sidebar leaves too little room for title + actions.
+    <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between animate-fade-up">
       <div>
         {eyebrow && <p className="eyebrow mb-2">{eyebrow}</p>}
         <h1 className="text-2xl font-semibold tracking-tight text-ink-900">{title}</h1>
@@ -108,7 +109,7 @@ export function Segmented<T extends string | number>({ options, value, onChange,
         const active = o.value === value;
         return (
           <button key={String(o.value)} role="tab" aria-selected={active} onClick={() => onChange(o.value)}
-            className={`rounded-lg px-3 py-1.5 text-xs font-medium capitalize transition ${active
+            className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-medium capitalize transition ${active
               ? 'bg-ink-900 text-white shadow-sm'
               : 'text-ink-500 hover:bg-ink-100 hover:text-ink-900'}`}>
             {o.label}
@@ -148,6 +149,11 @@ export function Avatar({ name, size = 'md' }: { name: string; size?: 'sm' | 'md'
       {name.trim().charAt(0) || '?'}
     </span>
   );
+}
+
+/** "1 note", "3 notes". */
+export function plural(n: number, word: string): string {
+  return `${n} ${word}${n === 1 ? '' : 's'}`;
 }
 
 /** "5m ago", "3d ago", or a date for older items. */

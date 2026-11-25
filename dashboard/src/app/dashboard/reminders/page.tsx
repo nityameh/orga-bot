@@ -111,15 +111,17 @@ export default function RemindersPage() {
             <div key={reminder.id} className="card card-hover group flex items-center gap-4 p-4">
               <DateTile iso={reminder.fireAt} />
               <div className="min-w-0 flex-1">
-                <h3 className={`truncate text-[15px] font-semibold ${reminder.status === 'done' ? 'text-ink-400 line-through' : 'text-ink-900'}`}>
+                <h3 className={`line-clamp-2 text-[15px] font-semibold sm:line-clamp-1 ${reminder.status === 'done' ? 'text-ink-400 line-through' : 'text-ink-900'}`}>
                   {reminder.title}
                 </h3>
-                <p className="mt-1 text-xs text-ink-400">
+                <p className="mt-1 flex flex-wrap items-center gap-2 text-xs text-ink-400">
                   {new Date(reminder.fireAt).toLocaleString('en-IN', { hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Kolkata', hour12: true })} IST
+                  {/* On phones the status sits under the title so the title keeps its width */}
+                  <span className={`chip capitalize ring-1 sm:hidden ${STATUS_STYLES[reminder.status] || ''}`}>{reminder.status}</span>
                 </p>
               </div>
 
-              <span className={`chip capitalize ring-1 ${STATUS_STYLES[reminder.status] || ''}`}>{reminder.status}</span>
+              <span className={`chip hidden capitalize ring-1 sm:inline-flex ${STATUS_STYLES[reminder.status] || ''}`}>{reminder.status}</span>
               <div className="flex gap-1">
                 {reminder.status !== 'done' && (
                   <button onClick={() => markDone(reminder.id)} className="btn btn-sm p-2 text-ink-400 hover:bg-emerald-50 hover:text-emerald-600"
