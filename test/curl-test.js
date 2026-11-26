@@ -6,7 +6,7 @@ require('dotenv').config();
 const crypto = require('crypto');
 const http = require('http');
 
-const PHONE = '919876543210';
+const PHONE = process.env.TEST_PHONE || '919876543210';
 let msgId = 100;
 
 async function send(text) {

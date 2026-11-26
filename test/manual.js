@@ -9,7 +9,7 @@ const http     = require('http');
 const crypto   = require('crypto');
 
 const SERVER   = 'http://localhost:3000';
-const FROM     = '919876543210'; // your real phone number
+const FROM     = process.env.TEST_PHONE || '919876543210'; // set TEST_PHONE in .env to test with your own number
 let   msgCount = 0;
 
 const rl = readline.createInterface({
