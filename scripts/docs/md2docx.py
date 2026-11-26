@@ -22,7 +22,7 @@ subprocess.run([PANDOC, "-o", ref_default, "--print-default-data-file", "referen
 FOOTER = ('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
           '<w:ftr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'
           '<w:p><w:pPr><w:jc w:val="center"/></w:pPr>'
-          '<w:r><w:rPr><w:sz w:val="18"/><w:color w:val="808080"/></w:rPr><w:t xml:space="preserve">Orga — Strategy Report · Confidential draft · Page </w:t></w:r>'
+          '<w:r><w:rPr><w:sz w:val="18"/><w:color w:val="808080"/></w:rPr><w:t xml:space="preserve">Orga — Strategy Report · Draft for review · Page </w:t></w:r>'
           '<w:r><w:rPr><w:sz w:val="18"/><w:color w:val="808080"/></w:rPr><w:fldChar w:fldCharType="begin"/></w:r>'
           '<w:r><w:rPr><w:sz w:val="18"/><w:color w:val="808080"/></w:rPr><w:instrText xml:space="preserve"> PAGE </w:instrText></w:r>'
           '<w:r><w:rPr><w:sz w:val="18"/><w:color w:val="808080"/></w:rPr><w:fldChar w:fldCharType="end"/></w:r>'
