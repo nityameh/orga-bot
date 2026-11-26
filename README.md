@@ -95,6 +95,10 @@ src/
     └── commands.js   /today /notes /search /schedule
 ```
 
+## License
+
+[MIT](LICENSE) © 2026 Nitya Mehta
+
 ---
 
 *Built by Nitya Mehta · March 2026*
